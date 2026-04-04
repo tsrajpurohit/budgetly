@@ -37,7 +37,9 @@ import {
   Menu,
   X,
   Sun,
-  Moon
+  Moon,
+  Share2,
+  Smartphone
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { Group, UserProfile } from './types';
@@ -54,9 +56,8 @@ export default function App() {
   const [lastError, setLastError] = useState<string | null>(null);
   const [selectedGroupId, setSelectedGroupId] = useState<string | null>(null);
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
-  const [dataDeletedPopup, setDataDeletedPopup] = useState(false);
-  const [showWelcomePopup, setShowWelcomePopup] = useState(false);
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
+  const [showMobileInstructions, setShowMobileInstructions] = useState(false);
   const [theme, setTheme] = useState<'light' | 'dark'>(() => {
     if (typeof window !== 'undefined') {
       return (localStorage.getItem('theme') as 'light' | 'dark') || 'dark';
@@ -73,6 +74,14 @@ export default function App() {
     }
     localStorage.setItem('theme', theme);
   }, [theme]);
+
+  useEffect(() => {
+    const isMobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
+    const hasSeenInstructions = localStorage.getItem('hasSeenMobileInstructions');
+    if (isMobile && !hasSeenInstructions && user) {
+      setShowMobileInstructions(true);
+    }
+  }, [user]);
 
   const toggleTheme = () => {
     setTheme(prev => prev === 'dark' ? 'light' : 'dark');
@@ -101,12 +110,6 @@ export default function App() {
     const unsubscribe = onAuthStateChanged(auth, async (currentUser) => {
       setUser(currentUser);
       if (currentUser) {
-        // Check if user has seen welcome popup
-        const hasSeenWelcome = localStorage.getItem(`hasSeenWelcome_${currentUser.uid}`);
-        if (!hasSeenWelcome) {
-          setShowWelcomePopup(true);
-        }
-
         // Ensure user profile exists
         const userRef = doc(db, 'users', currentUser.uid);
         const userSnap = await getDoc(userRef);
@@ -121,33 +124,6 @@ export default function App() {
             });
           } catch (error) {
             console.error("Error creating user profile:", error);
-          }
-        } else {
-          const data = userSnap.data();
-          const createdAt = data.createdAt?.toDate();
-          if (createdAt && (Date.now() - createdAt.getTime() > 24 * 60 * 60 * 1000)) {
-            try {
-              // Delete all groups created by this user
-              console.log("Checking for demo data reset...");
-              const groupsQuery = query(collection(db, 'groups'), where('memberIds', 'array-contains', currentUser.uid));
-              const groupsSnap = await getDocs(groupsQuery);
-              console.log(`Found ${groupsSnap.docs.length} groups for user ${currentUser.uid}`);
-              for (const groupDoc of groupsSnap.docs) {
-                if (groupDoc.data().createdBy === currentUser.uid) {
-                  console.log(`Deleting group ${groupDoc.id} due to demo reset`);
-                  await deleteDoc(doc(db, 'groups', groupDoc.id));
-                }
-              }
-              // Reset their createdAt
-              await setDoc(userRef, {
-                ...data,
-                createdAt: serverTimestamp(),
-              });
-              // Show popup
-              setDataDeletedPopup(true);
-            } catch (error) {
-              console.error("Error resetting demo data:", error);
-            }
           }
         }
 
@@ -282,7 +258,7 @@ export default function App() {
         )}
       </AnimatePresence>
 
-      {/* Sidebar */}
+      {/* Sidebar - Hidden on mobile, shown as drawer */}
       <aside className={`
         fixed lg:static inset-y-0 left-0 w-72 bg-white dark:bg-zinc-950 border-r border-zinc-200 dark:border-white/5 flex flex-col z-50 lg:z-10 transition-all duration-300 ease-in-out overflow-y-auto custom-scrollbar
         ${isSidebarOpen ? 'translate-x-0' : '-translate-x-full lg:translate-x-0'}
@@ -392,21 +368,29 @@ export default function App() {
       </aside>
 
       {/* Main Content */}
-      <main className="flex-1 overflow-y-auto relative">
+      <main className="flex-1 overflow-y-auto relative pb-24 lg:pb-0">
         {/* Mobile Header */}
-        <div className="lg:hidden flex items-center justify-between p-4 bg-zinc-950 border-b border-white/5 sticky top-0 z-30">
+        <div className="lg:hidden flex items-center justify-between p-4 bg-white/80 dark:bg-zinc-950/80 backdrop-blur-xl border-b border-zinc-200 dark:border-white/5 sticky top-0 z-30">
           <div className="flex items-center gap-2">
-            <div className="w-8 h-8 bg-gradient-to-br from-indigo-500 to-fuchsia-500 rounded-lg flex items-center justify-center">
+            <div className="w-8 h-8 bg-gradient-to-br from-indigo-500 to-fuchsia-500 rounded-lg flex items-center justify-center shadow-lg shadow-indigo-500/20">
               <Wallet className="w-5 h-5 text-white" />
             </div>
-            <span className="font-bold text-white font-display">Budgeted</span>
+            <span className="font-bold text-zinc-900 dark:text-white font-display">Budgeted</span>
           </div>
-          <button 
-            onClick={() => setIsSidebarOpen(true)}
-            className="p-2 text-zinc-400 hover:text-white"
-          >
-            <Menu className="w-6 h-6" />
-          </button>
+          <div className="flex items-center gap-2">
+            <button 
+              onClick={toggleTheme}
+              className="p-2 text-zinc-500 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-white"
+            >
+              {theme === 'dark' ? <Sun className="w-5 h-5" /> : <Moon className="w-5 h-5" />}
+            </button>
+            <button 
+              onClick={() => setIsSidebarOpen(true)}
+              className="p-2 text-zinc-500 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-white"
+            >
+              <Menu className="w-6 h-6" />
+            </button>
+          </div>
         </div>
         <AnimatePresence mode="wait">
           {!selectedGroupId ? (
@@ -416,7 +400,7 @@ export default function App() {
               animate={{ opacity: 1, y: 0 }}
               exit={{ opacity: 0, y: -10 }}
               transition={{ duration: 0.3 }}
-              className="p-10 max-w-7xl mx-auto"
+              className="p-4 sm:p-10 max-w-7xl mx-auto"
             >
               <Dashboard 
                 user={user} 
@@ -435,7 +419,7 @@ export default function App() {
               animate={{ opacity: 1, y: 0 }}
               exit={{ opacity: 0, y: -10 }}
               transition={{ duration: 0.3 }}
-              className="p-10 max-w-7xl mx-auto"
+              className="p-4 sm:p-10 max-w-7xl mx-auto"
             >
               <GroupView 
                 groupId={selectedGroupId} 
@@ -448,34 +432,84 @@ export default function App() {
         </AnimatePresence>
       </main>
 
+      {/* Mobile Bottom Navigation */}
+      <nav className="lg:hidden fixed bottom-0 left-0 right-0 bg-white/80 dark:bg-zinc-950/80 backdrop-blur-xl border-t border-zinc-200 dark:border-white/5 px-6 py-3 flex items-center justify-around z-40 pb-safe">
+        <button 
+          onClick={() => setSelectedGroupId(null)}
+          className={`flex flex-col items-center gap-1 transition-colors ${!selectedGroupId ? 'text-indigo-600 dark:text-indigo-400' : 'text-zinc-400'}`}
+        >
+          <LayoutDashboard className="w-6 h-6" />
+          <span className="text-[10px] font-bold uppercase tracking-wider">Home</span>
+        </button>
+        
+        <button 
+          onClick={() => {
+            if (selectedGroupId) {
+              (window as any).openAddExpenseModal?.();
+            } else {
+              setIsCreateModalOpen(true);
+            }
+          }}
+          className="w-14 h-14 bg-indigo-600 rounded-2xl flex items-center justify-center text-white shadow-lg shadow-indigo-600/30 -translate-y-6 border-4 border-zinc-50 dark:border-zinc-950 active:scale-90 transition-transform"
+        >
+          <Plus className="w-8 h-8" />
+        </button>
+
+        <button 
+          onClick={() => setIsSidebarOpen(true)}
+          className={`flex flex-col items-center gap-1 transition-colors ${selectedGroupId ? 'text-indigo-600 dark:text-indigo-400' : 'text-zinc-400'}`}
+        >
+          <Users className="w-6 h-6" />
+          <span className="text-[10px] font-bold uppercase tracking-wider">Groups</span>
+        </button>
+      </nav>
+
       {/* Modals */}
+      {/* Mobile Instructions Popup */}
       <AnimatePresence>
-        {dataDeletedPopup && (
-          <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+        {showMobileInstructions && (
+          <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
             <motion.div 
               initial={{ opacity: 0 }} 
               animate={{ opacity: 1 }} 
               exit={{ opacity: 0 }}
-              onClick={() => setDataDeletedPopup(false)}
-              className="absolute inset-0 bg-zinc-900/40 backdrop-blur-sm"
+              onClick={() => {
+                setShowMobileInstructions(false);
+                localStorage.setItem('hasSeenMobileInstructions', 'true');
+              }}
+              className="absolute inset-0 bg-zinc-900/60 backdrop-blur-md"
             />
             <motion.div
               initial={{ opacity: 0, scale: 0.95, y: 20 }}
               animate={{ opacity: 1, scale: 1, y: 0 }}
               exit={{ opacity: 0, scale: 0.95, y: 20 }}
-              className="relative w-full max-w-md bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-[40px] shadow-2xl p-10 text-center"
+              className="relative w-full max-w-md bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-white/10 rounded-[40px] shadow-2xl p-8 sm:p-10 text-center"
             >
-              <div className="w-20 h-20 bg-orange-50 dark:bg-orange-500/10 rounded-3xl flex items-center justify-center mx-auto mb-8 text-orange-600 dark:text-orange-400 border border-orange-100 dark:border-orange-500/20">
-                <Settings className="w-10 h-10" />
+              <div className="w-20 h-20 bg-indigo-50 dark:bg-indigo-500/10 rounded-3xl flex items-center justify-center mx-auto mb-8 text-indigo-600 dark:text-indigo-400 border border-indigo-100 dark:border-indigo-500/20">
+                <Smartphone className="w-10 h-10" />
               </div>
-              <h3 className="text-2xl font-bold tracking-tight text-zinc-900 dark:text-white mb-4 font-display">Demo Data Reset</h3>
-              <p className="text-zinc-500 dark:text-zinc-400 mb-10 leading-relaxed text-sm">
-                Your data has been deleted because 24 hours have passed since you first signed in. 
-                This is a demo application. If you want your data to persist, please click the <span className="font-bold text-zinc-900 dark:text-white">Remix</span> button to create your own version of the app!
+              <h3 className="text-2xl font-bold tracking-tight text-zinc-900 dark:text-white mb-4 font-display">Install as App</h3>
+              <p className="text-zinc-500 dark:text-zinc-400 mb-8 leading-relaxed text-sm">
+                For the best experience, add <span className="font-bold text-zinc-900 dark:text-white">Budgeted</span> to your home screen!
               </p>
+              
+              <div className="space-y-6 text-left mb-10">
+                <div className="flex items-start gap-4">
+                  <div className="w-8 h-8 rounded-full bg-zinc-100 dark:bg-white/5 flex items-center justify-center shrink-0 text-xs font-bold text-zinc-500">1</div>
+                  <p className="text-sm text-zinc-600 dark:text-zinc-400">Tap the <span className="inline-flex items-center px-2 py-1 bg-zinc-100 dark:bg-white/5 rounded-lg font-bold text-zinc-900 dark:text-white mx-1"><Share2 className="w-3 h-3 mr-1" /> Share</span> button in your browser.</p>
+                </div>
+                <div className="flex items-start gap-4">
+                  <div className="w-8 h-8 rounded-full bg-zinc-100 dark:bg-white/5 flex items-center justify-center shrink-0 text-xs font-bold text-zinc-500">2</div>
+                  <p className="text-sm text-zinc-600 dark:text-zinc-400">Select <span className="font-bold text-zinc-900 dark:text-white">"Add to Home Screen"</span> from the menu.</p>
+                </div>
+              </div>
+
               <button
-                onClick={() => setDataDeletedPopup(false)}
-                className="w-full py-4 bg-zinc-900 dark:bg-white text-white dark:text-zinc-900 rounded-2xl font-bold hover:bg-zinc-800 dark:hover:bg-zinc-100 transition-all shadow-lg shadow-zinc-200 dark:shadow-black/20 active:scale-95"
+                onClick={() => {
+                  setShowMobileInstructions(false);
+                  localStorage.setItem('hasSeenMobileInstructions', 'true');
+                }}
+                className="w-full py-4 bg-indigo-600 text-white rounded-2xl font-bold hover:bg-indigo-700 transition-all shadow-lg shadow-indigo-500/20 active:scale-95"
               >
                 Got it
               </button>
@@ -489,49 +523,6 @@ export default function App() {
         onClose={() => setIsCreateModalOpen(false)} 
         user={user}
       />
-
-      {/* Welcome Popup */}
-      <AnimatePresence>
-        {showWelcomePopup && (
-          <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-            <motion.div 
-              initial={{ opacity: 0 }} 
-              animate={{ opacity: 1 }} 
-              exit={{ opacity: 0 }}
-              onClick={() => {
-                setShowWelcomePopup(false);
-                localStorage.setItem(`hasSeenWelcome_${user.uid}`, 'true');
-              }}
-              className="absolute inset-0 bg-zinc-900/40 backdrop-blur-sm"
-            />
-            <motion.div
-              initial={{ opacity: 0, scale: 0.95, y: 20 }}
-              animate={{ opacity: 1, scale: 1, y: 0 }}
-              exit={{ opacity: 0, scale: 0.95, y: 20 }}
-              className="relative w-full max-w-md bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-[40px] shadow-2xl p-10 text-center"
-            >
-              <div className="w-20 h-20 bg-indigo-50 dark:bg-indigo-500/10 rounded-3xl flex items-center justify-center mx-auto mb-8 text-indigo-600 dark:text-indigo-400 border border-indigo-100 dark:border-indigo-500/20">
-                <LayoutDashboard className="w-10 h-10" />
-              </div>
-              <h3 className="text-2xl font-bold tracking-tight text-zinc-900 dark:text-white mb-4 font-display">Welcome to the Demo!</h3>
-              <p className="text-zinc-500 dark:text-zinc-400 mb-10 leading-relaxed text-sm">
-                This is a demo application. To keep the demo fresh, <span className="font-bold text-zinc-900 dark:text-white">all data is automatically deleted every 24 hours</span>.
-                <br /><br />
-                If you want to create your own permanent version, click the <span className="font-bold text-zinc-900 dark:text-white">Remix</span> button in the top right!
-              </p>
-              <button
-                onClick={() => {
-                  setShowWelcomePopup(false);
-                  localStorage.setItem(`hasSeenWelcome_${user.uid}`, 'true');
-                }}
-                className="w-full py-4 bg-indigo-600 text-white rounded-2xl font-bold hover:bg-indigo-700 transition-all shadow-lg shadow-indigo-500/20 active:scale-95"
-              >
-                Got it, let's go!
-              </button>
-            </motion.div>
-          </div>
-        )}
-      </AnimatePresence>
     </div>
   );
 }
