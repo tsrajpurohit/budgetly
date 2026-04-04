@@ -224,23 +224,23 @@ export default function Dashboard({ user, groups, onSelectGroup, theme }: Dashbo
 
   return (
     <div className="max-w-6xl mx-auto">
-      <header className="mb-12 flex flex-col md:flex-row md:items-end justify-between gap-6">
+      <header className="mb-8 md:mb-12 flex flex-col md:flex-row md:items-end justify-between gap-6">
         <div>
-          <h1 className="text-4xl md:text-5xl font-bold tracking-tight text-zinc-900 dark:text-white mb-3 font-display">
+          <h1 className="text-3xl md:text-5xl font-bold tracking-tight text-zinc-900 dark:text-white mb-2 md:mb-3 font-display">
             Welcome back, <span className="text-indigo-600 dark:text-indigo-400">{user.displayName?.split(' ')[0]}</span>
           </h1>
-          <p className="text-zinc-500 dark:text-zinc-400 font-medium text-lg">Here's what's happening with your shared budgets today.</p>
+          <p className="text-zinc-500 dark:text-zinc-400 font-medium text-base md:text-lg">Here's what's happening with your shared budgets today.</p>
         </div>
         <button 
           onClick={() => (window as any).openCreateGroupModal?.()}
-          className="flex items-center gap-2 px-6 py-3 bg-indigo-600 text-white rounded-2xl text-sm font-bold hover:bg-indigo-700 hover:shadow-xl hover:shadow-indigo-500/40 transition-all shadow-lg shadow-indigo-500/20 active:scale-95"
+          className="hidden md:flex items-center gap-2 px-6 py-3 bg-indigo-600 text-white rounded-2xl text-sm font-bold hover:bg-indigo-700 hover:shadow-xl hover:shadow-indigo-500/40 transition-all shadow-lg shadow-indigo-500/20 active:scale-95"
         >
           <Plus className="w-4 h-4" />
           Create New Group
         </button>
       </header>
 
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-12">
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 md:gap-6 mb-12">
         <button 
           onClick={() => {
             if (groups.length === 0) return;
@@ -250,15 +250,15 @@ export default function Dashboard({ user, groups, onSelectGroup, theme }: Dashbo
               setIsGroupsListOpen(true);
             }
           }}
-          className={`text-left bg-indigo-600 p-8 rounded-[32px] shadow-lg shadow-indigo-500/40 relative overflow-hidden group transition-all ${groups.length > 0 ? 'hover:scale-[1.02] active:scale-95 cursor-pointer' : 'cursor-default'}`}
+          className={`text-left bg-indigo-600 p-6 md:p-8 rounded-[24px] md:rounded-[32px] shadow-lg shadow-indigo-500/40 relative overflow-hidden group transition-all ${groups.length > 0 ? 'hover:scale-[1.02] active:scale-95 cursor-pointer' : 'cursor-default'}`}
         >
-          <div className="absolute top-0 right-0 w-32 h-32 bg-white/10 rounded-full -mr-16 -mt-16 transition-transform group-hover:scale-110" />
+          <div className="absolute top-0 right-0 w-24 h-24 md:w-32 md:h-32 bg-white/10 rounded-full -mr-12 -mt-12 md:-mr-16 md:-mt-16 transition-transform group-hover:scale-110" />
           <div className="relative z-10">
-            <div className="w-12 h-12 bg-white/20 backdrop-blur-md rounded-2xl flex items-center justify-center mb-6">
-              <Users className="w-6 h-6 text-white" />
+            <div className="w-10 h-10 md:w-12 md:h-12 bg-white/20 backdrop-blur-md rounded-xl md:rounded-2xl flex items-center justify-center mb-4 md:mb-6">
+              <Users className="w-5 h-5 md:w-6 md:h-6 text-white" />
             </div>
-            <p className="text-xs font-bold text-indigo-100 uppercase tracking-[0.2em] mb-1">Active Groups</p>
-            <p className="text-4xl font-bold text-white font-display tracking-tight">{groups.length}</p>
+            <p className="text-[10px] md:text-xs font-bold text-indigo-100 uppercase tracking-[0.2em] mb-1">Active Groups</p>
+            <p className="text-3xl md:text-4xl font-bold text-white font-display tracking-tight">{groups.length}</p>
           </div>
         </button>
 
@@ -267,15 +267,15 @@ export default function Dashboard({ user, groups, onSelectGroup, theme }: Dashbo
             if (recentExpenses.length === 0) return;
             onSelectGroup(recentExpenses[0].groupId);
           }}
-          className={`text-left bg-emerald-600 p-8 rounded-[32px] shadow-lg shadow-emerald-500/40 relative overflow-hidden group transition-all ${recentExpenses.length > 0 ? 'hover:scale-[1.02] active:scale-95 cursor-pointer' : 'cursor-default'}`}
+          className={`text-left bg-emerald-600 p-6 md:p-8 rounded-[24px] md:rounded-[32px] shadow-lg shadow-emerald-500/40 relative overflow-hidden group transition-all ${recentExpenses.length > 0 ? 'hover:scale-[1.02] active:scale-95 cursor-pointer' : 'cursor-default'}`}
         >
-          <div className="absolute top-0 right-0 w-32 h-32 bg-white/10 rounded-full -mr-16 -mt-16 transition-transform group-hover:scale-110" />
+          <div className="absolute top-0 right-0 w-24 h-24 md:w-32 md:h-32 bg-white/10 rounded-full -mr-12 -mt-12 md:-mr-16 md:-mt-16 transition-transform group-hover:scale-110" />
           <div className="relative z-10">
-            <div className="w-12 h-12 bg-white/20 backdrop-blur-md rounded-2xl flex items-center justify-center mb-6">
-              <Receipt className="w-6 h-6 text-white" />
+            <div className="w-10 h-10 md:w-12 md:h-12 bg-white/20 backdrop-blur-md rounded-xl md:rounded-2xl flex items-center justify-center mb-4 md:mb-6">
+              <Receipt className="w-5 h-5 md:w-6 md:h-6 text-white" />
             </div>
-            <p className="text-xs font-bold text-emerald-100 uppercase tracking-[0.2em] mb-1">Recent Expenses</p>
-            <p className="text-4xl font-bold text-white font-display tracking-tight">{recentExpenses.length}</p>
+            <p className="text-[10px] md:text-xs font-bold text-emerald-100 uppercase tracking-[0.2em] mb-1">Recent Expenses</p>
+            <p className="text-3xl md:text-4xl font-bold text-white font-display tracking-tight">{recentExpenses.length}</p>
           </div>
         </button>
 
@@ -284,15 +284,15 @@ export default function Dashboard({ user, groups, onSelectGroup, theme }: Dashbo
             if (alerts.length === 0) return;
             onSelectGroup(alerts[0].groupId);
           }}
-          className={`text-left bg-fuchsia-600 p-8 rounded-[32px] shadow-lg shadow-fuchsia-500/40 relative overflow-hidden group transition-all ${alerts.length > 0 ? 'hover:scale-[1.02] active:scale-95 cursor-pointer' : 'cursor-default'}`}
+          className={`text-left bg-fuchsia-600 p-6 md:p-8 rounded-[24px] md:rounded-[32px] shadow-lg shadow-fuchsia-500/40 relative overflow-hidden group transition-all ${alerts.length > 0 ? 'hover:scale-[1.02] active:scale-95 cursor-pointer' : 'cursor-default'}`}
         >
-          <div className="absolute top-0 right-0 w-32 h-32 bg-white/10 rounded-full -mr-16 -mt-16 transition-transform group-hover:scale-110" />
+          <div className="absolute top-0 right-0 w-24 h-24 md:w-32 md:h-32 bg-white/10 rounded-full -mr-12 -mt-12 md:-mr-16 md:-mt-16 transition-transform group-hover:scale-110" />
           <div className="relative z-10">
-            <div className="w-12 h-12 bg-white/20 backdrop-blur-md rounded-2xl flex items-center justify-center mb-6">
-              <TrendingUp className="w-6 h-6 text-white" />
+            <div className="w-10 h-10 md:w-12 md:h-12 bg-white/20 backdrop-blur-md rounded-xl md:rounded-2xl flex items-center justify-center mb-4 md:mb-6">
+              <TrendingUp className="w-5 h-5 md:w-6 md:h-6 text-white" />
             </div>
-            <p className="text-xs font-bold text-fuchsia-100 uppercase tracking-[0.2em] mb-1">Active Alerts</p>
-            <p className="text-4xl font-bold text-white font-display tracking-tight">{alerts.length}</p>
+            <p className="text-[10px] md:text-xs font-bold text-fuchsia-100 uppercase tracking-[0.2em] mb-1">Active Alerts</p>
+            <p className="text-3xl md:text-4xl font-bold text-white font-display tracking-tight">{alerts.length}</p>
           </div>
         </button>
       </div>
