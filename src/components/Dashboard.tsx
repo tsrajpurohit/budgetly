@@ -199,7 +199,7 @@ export default function Dashboard({ user, groups, onSelectGroup, theme }: Dashbo
           if (totalSpent > g.maxBudget) {
             newAlerts.push({
               id: `over-budget-${g.id}`,
-              message: `Group "${g.name}" is over its ${g.budgetType || 'total'} budget ($${totalSpent.toFixed(2)} / $${g.maxBudget.toFixed(2)})`,
+              message: `Group "${g.name}" is over its ${g.budgetType || 'total'} budget (₹${totalSpent.toFixed(2)} / ₹${g.maxBudget.toFixed(2)})`,
               type: 'warning' as const,
               groupId: g.id
             });
@@ -383,9 +383,9 @@ export default function Dashboard({ user, groups, onSelectGroup, theme }: Dashbo
                         <div className="text-left sm:text-right min-w-0">
                           <p 
                             className={`text-lg sm:text-xl font-bold font-mono truncate ${expense.paidBy === user.uid ? 'text-emerald-600 dark:text-emerald-400' : 'text-zinc-900 dark:text-white'}`}
-                            title={`$${formatCurrency(expense.amount)}`}
+                            title={`₹${formatCurrency(expense.amount)}`}
                           >
-                            ${formatCurrency(expense.amount)}
+                            ₹{formatCurrency(expense.amount)}
                           </p>
                           <p className="text-[9px] sm:text-[10px] text-zinc-500 uppercase tracking-widest font-bold mt-0.5">
                             {expense.paidBy === user.uid ? 'You paid' : 'Someone paid'}
@@ -495,7 +495,7 @@ export default function Dashboard({ user, groups, onSelectGroup, theme }: Dashbo
                 <div>
                   <label className="block text-[10px] font-bold text-zinc-400 uppercase tracking-[0.15em] mb-2">Amount</label>
                   <div className="relative">
-                    <span className="absolute left-5 top-1/2 -translate-y-1/2 text-zinc-400 font-mono font-bold">$</span>
+                    <span className="absolute left-5 top-1/2 -translate-y-1/2 text-zinc-400 font-mono font-bold">₹</span>
                     <input
                       type="number"
                       step="0.01"
