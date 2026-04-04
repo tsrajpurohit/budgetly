@@ -17,6 +17,8 @@ import {
   Sparkles,
   Loader2,
   Pencil,
+  Download,
+  Grid3X3,
   X
 } from 'lucide-react';
 import Markdown from 'react-markdown';
@@ -142,6 +144,16 @@ export default function GroupView({ groupId, user, onBack, theme }: GroupViewPro
   const [inviteLoading, setInviteLoading] = useState(false);
   const [inviteError, setInviteError] = useState<string | null>(null);
   const [inviteSuccess, setInviteSuccess] = useState(false);
+
+  useEffect(() => {
+    (window as any).openAddExpenseModal = () => {
+      setEditingExpense(null);
+      setIsAddExpenseOpen(true);
+    };
+    return () => {
+      delete (window as any).openAddExpenseModal;
+    };
+  }, []);
 
   useEffect(() => {
     const groupRef = doc(db, 'groups', groupId);
@@ -307,7 +319,59 @@ export default function GroupView({ groupId, user, onBack, theme }: GroupViewPro
 
   const handleAddMember = async (e: React.FormEvent) => {
     e.preventDefault();
-    setInviteError('This feature has been disabled for this demo. Click the Remix button to create your own version of the app and enable sharing.');
+    if (!newMemberEmail.trim() || inviteLoading) return;
+
+    setInviteLoading(true);
+    setInviteError(null);
+    setInviteSuccess(false);
+
+    try {
+      // 1. Search for user by email
+      const usersQuery = query(collection(db, 'users'), where('email', '==', newMemberEmail.trim()));
+      const usersSnap = await getDocs(usersQuery);
+
+      if (usersSnap.empty) {
+        setInviteError('No user found with this email address. They must sign in to Budgeted at least once to be invited.');
+        return;
+      }
+
+      const invitedUser = usersSnap.docs[0].data();
+      const invitedUid = invitedUser.uid;
+
+      // 2. Check if already a member
+      if (group?.memberIds.includes(invitedUid)) {
+        setInviteError('This user is already a member of the group.');
+        return;
+      }
+
+      // 3. Add to group's memberIds array
+      await updateDoc(doc(db, 'groups', groupId), {
+        memberIds: arrayUnion(invitedUid)
+      });
+
+      // 4. Add to members subcollection
+      await setDoc(doc(db, 'groups', groupId, 'members', invitedUid), {
+        uid: invitedUid,
+        role: 'member',
+        joinedAt: serverTimestamp(),
+        displayName: invitedUser.displayName,
+        email: invitedUser.email,
+        photoURL: invitedUser.photoURL || null
+      });
+
+      setInviteSuccess(true);
+      setNewMemberEmail('');
+      setTimeout(() => {
+        setIsAddMemberOpen(false);
+        setInviteSuccess(false);
+      }, 2000);
+    } catch (error) {
+      console.error("Error adding member:", error);
+      handleFirestoreError(error, OperationType.UPDATE, `groups/${groupId}/members`);
+      setInviteError('Failed to add member. Please try again.');
+    } finally {
+      setInviteLoading(false);
+    }
   };
 
   const handleDeleteExpense = async (id: string) => {
@@ -527,6 +591,64 @@ export default function GroupView({ groupId, user, onBack, theme }: GroupViewPro
       }
     }
   };
+
+  const handleExportCSV = () => {
+    if (!expenses.length) return;
+    
+    const headers = ['Date', 'Description', 'Category', 'Amount', 'Paid By', 'Recurring', 'Auto-generated'];
+    const rows = expenses.map(e => [
+      e.date.toDate().toLocaleDateString(),
+      `"${e.description.replace(/"/g, '""')}"`,
+      e.category,
+      e.amount,
+      members.find(m => m.uid === e.paidBy)?.displayName || 'Unknown',
+      e.isRecurring ? 'Yes' : 'No',
+      e.recurringTemplateId ? 'Yes' : 'No'
+    ]);
+    
+    const csvContent = [headers.join(','), ...rows.map(r => r.join(','))].join('\n');
+    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+    const link = document.createElement('a');
+    const url = URL.createObjectURL(blob);
+    link.setAttribute('href', url);
+    link.setAttribute('download', `${group?.name || 'expenses'}_export_${new Date().toISOString().split('T')[0]}.csv`);
+    link.style.visibility = 'hidden';
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+  };
+
+  const getHeatmapData = () => {
+    const now = new Date();
+    const months = [];
+    for (let i = 5; i >= 0; i--) {
+      const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
+      months.push({
+        month: d.getMonth(),
+        year: d.getFullYear(),
+        label: d.toLocaleDateString('en-US', { month: 'short' })
+      });
+    }
+
+    const data = CATEGORIES.map(category => {
+      const monthValues = months.map(m => {
+        const amount = expenses
+          .filter(e => {
+            const ed = e.date.toDate();
+            return ed.getMonth() === m.month && ed.getFullYear() === m.year && e.category === category;
+          })
+          .reduce((sum, e) => sum + e.amount, 0);
+        return { month: m.label, amount };
+      });
+      return { category, monthValues };
+    });
+
+    const maxAmount = Math.max(...data.flatMap(d => d.monthValues.map(mv => mv.amount)), 1);
+
+    return { data, months, maxAmount };
+  };
+
+  const heatmapData = getHeatmapData();
 
   if (!group) return null;
 
@@ -763,6 +885,50 @@ export default function GroupView({ groupId, user, onBack, theme }: GroupViewPro
                 <p className="font-medium italic">No expenses in this period</p>
               </div>
             )}
+          </div>
+        </div>
+      </div>
+
+      <div className="bg-white dark:bg-zinc-900 p-4 sm:p-8 rounded-[40px] border border-zinc-200 dark:border-zinc-800 shadow-xl shadow-zinc-200/50 dark:shadow-black/20 mb-12">
+        <h3 className="text-xs font-bold text-zinc-500 dark:text-zinc-400 uppercase tracking-[0.15em] mb-8 flex items-center gap-2">
+          <Grid3X3 className="w-4 h-4" />
+          Monthly Breakdown Heatmap (Last 6 Months)
+        </h3>
+        <div className="overflow-x-auto pb-4 custom-scrollbar">
+          <div className="min-w-[600px]">
+            <div className="grid grid-cols-[120px_repeat(6,1fr)] gap-2 mb-2">
+              <div />
+              {heatmapData.months.map(m => (
+                <div key={`${m.month}-${m.year}`} className="text-[10px] font-bold text-zinc-400 uppercase text-center tracking-widest">
+                  {m.label}
+                </div>
+              ))}
+            </div>
+            {heatmapData.data.map(row => (
+              <div key={row.category} className="grid grid-cols-[120px_repeat(6,1fr)] gap-2 mb-2 items-center">
+                <div className="text-[10px] font-bold text-zinc-500 uppercase truncate pr-2">
+                  {row.category}
+                </div>
+                {row.monthValues.map((mv, i) => {
+                  const intensity = mv.amount / heatmapData.maxAmount;
+                  return (
+                    <div 
+                      key={i}
+                      className="h-12 rounded-xl relative group/cell transition-all duration-300"
+                      style={{ 
+                        backgroundColor: mv.amount > 0 
+                          ? `rgba(79, 70, 229, ${Math.max(0.1, intensity)})` 
+                          : theme === 'dark' ? 'rgba(255,255,255,0.03)' : 'rgba(0,0,0,0.03)' 
+                      }}
+                    >
+                      <div className="absolute inset-0 flex items-center justify-center opacity-0 group-hover/cell:opacity-100 transition-opacity bg-zinc-900/80 rounded-xl z-10">
+                        <span className="text-[10px] font-bold text-white">₹{formatCurrency(mv.amount)}</span>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            ))}
           </div>
         </div>
       </div>
@@ -1172,8 +1338,16 @@ export default function GroupView({ groupId, user, onBack, theme }: GroupViewPro
                   Save Settings
                 </button>
 
-                {(members.find(m => m.uid === user.uid)?.role === 'admin' || group?.createdBy === user.uid) && (
-                  <div className="pt-8 border-t border-zinc-100 dark:border-zinc-800">
+                <div className="pt-8 border-t border-zinc-100 dark:border-zinc-800 space-y-4">
+                  <button
+                    type="button"
+                    onClick={handleExportCSV}
+                    className="w-full py-4 bg-indigo-50 dark:bg-indigo-500/10 text-indigo-600 dark:text-indigo-400 rounded-2xl font-bold hover:bg-indigo-100 dark:hover:bg-indigo-500/20 transition-all flex items-center justify-center gap-2 active:scale-95"
+                  >
+                    <Download className="w-5 h-5" />
+                    Export Expenses (CSV)
+                  </button>
+                  {(members.find(m => m.uid === user.uid)?.role === 'admin' || group?.createdBy === user.uid) && (
                     <button
                       type="button"
                       onClick={() => {
@@ -1185,8 +1359,8 @@ export default function GroupView({ groupId, user, onBack, theme }: GroupViewPro
                       <Trash2 className="w-5 h-5" />
                       Delete Group
                     </button>
-                  </div>
-                )}
+                  )}
+                </div>
               </form>
             </motion.div>
           </div>
