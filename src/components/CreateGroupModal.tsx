@@ -169,7 +169,7 @@ export default function CreateGroupModal({ isOpen, onClose, user }: CreateGroupM
                     <div>
                       <label htmlFor="max-budget" className="block text-[10px] font-bold text-zinc-500 mb-3 uppercase tracking-wider font-display">Max Budget</label>
                       <div className="relative">
-                        <span className="absolute left-5 top-1/2 -translate-y-1/2 text-zinc-400 dark:text-zinc-600 font-bold">$</span>
+                        <span className="absolute left-5 top-1/2 -translate-y-1/2 text-zinc-400 dark:text-zinc-600 font-bold">₹</span>
                         <input
                           id="max-budget"
                           type="number"
