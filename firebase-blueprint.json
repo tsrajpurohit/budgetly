@@ -1,0 +1,83 @@
+{
+  "entities": {
+    "User": {
+      "title": "User",
+      "description": "User profile information",
+      "type": "object",
+      "properties": {
+        "uid": { "type": "string" },
+        "displayName": { "type": "string" },
+        "email": { "type": "string" },
+        "photoURL": { "type": "string" },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["uid", "email"]
+    },
+    "Group": {
+      "title": "Group",
+      "description": "A group of users tracking expenses together (e.g., household, trip)",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "name": { "type": "string" },
+        "description": { "type": "string" },
+        "createdBy": { "type": "string" },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "type": { "type": "string", "enum": ["personal", "household", "trip", "other"] },
+        "memberIds": { "type": "array", "items": { "type": "string" } },
+        "maxBudget": { "type": "number" },
+        "budgetType": { "type": "string", "enum": ["weekly", "monthly", "total"] }
+      },
+      "required": ["name", "createdBy", "type", "memberIds"]
+    },
+    "Expense": {
+      "title": "Expense",
+      "description": "An expense record within a group",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "amount": { "type": "number" },
+        "description": { "type": "string" },
+        "category": { "type": "string" },
+        "paidBy": { "type": "string" },
+        "date": { "type": "string", "format": "date-time" },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "splitType": { "type": "string", "enum": ["equal", "percentage", "exact"] },
+        "isRecurring": { "type": "boolean" },
+        "recurringTemplateId": { "type": "string" }
+      },
+      "required": ["amount", "description", "paidBy", "date", "category"]
+    },
+    "GroupMember": {
+      "title": "Group Member",
+      "description": "A user's membership in a group",
+      "type": "object",
+      "properties": {
+        "uid": { "type": "string" },
+        "role": { "type": "string", "enum": ["admin", "member"] },
+        "joinedAt": { "type": "string", "format": "date-time" },
+        "displayName": { "type": "string" },
+        "email": { "type": "string" }
+      },
+      "required": ["uid", "role"]
+    }
+  },
+  "firestore": {
+    "/users/{userId}": {
+      "schema": "User",
+      "description": "User profile documents"
+    },
+    "/groups/{groupId}": {
+      "schema": "Group",
+      "description": "Group metadata"
+    },
+    "/groups/{groupId}/expenses/{expenseId}": {
+      "schema": "Expense",
+      "description": "Expenses belonging to a group"
+    },
+    "/groups/{groupId}/members/{userId}": {
+      "schema": "GroupMember",
+      "description": "Members of a group"
+    }
+  }
+}
