@@ -677,7 +677,7 @@ export default function GroupView({ groupId, user, onBack, theme }: GroupViewPro
               Spending Trend ({group.budgetType})
             </h3>
             <div className="h-[280px] w-full">
-              <ResponsiveContainer width="100%" height="100%" minWidth={0}>
+              <ResponsiveContainer width="100%" height="100%" minWidth={0} minHeight={0}>
                 <LineChart data={lineData} margin={{ top: 5, right: 5, left: -20, bottom: 5 }}>
                   <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f4f4f5" opacity={0.1} />
                   <XAxis 
@@ -727,7 +727,7 @@ export default function GroupView({ groupId, user, onBack, theme }: GroupViewPro
           </h3>
           <div className="h-[280px] w-full">
             {pieData.length > 0 ? (
-              <ResponsiveContainer width="100%" height="100%" minWidth={0}>
+              <ResponsiveContainer width="100%" height="100%" minWidth={0} minHeight={0}>
                 <PieChart>
                   <Pie
                     data={pieData}
