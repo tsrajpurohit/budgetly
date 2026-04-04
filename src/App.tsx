@@ -78,6 +78,18 @@ export default function App() {
     setTheme(prev => prev === 'dark' ? 'light' : 'dark');
   };
 
+  const [loginError, setLoginError] = useState<string | null>(null);
+
+  const handleSignIn = async () => {
+    try {
+      setLoginError(null);
+      await signIn();
+    } catch (error: any) {
+      console.error("Login Error:", error);
+      setLoginError(error.message || "Failed to sign in with Google");
+    }
+  };
+
   useEffect(() => {
     (window as any).openCreateGroupModal = () => setIsCreateModalOpen(true);
     return () => {
@@ -224,8 +236,17 @@ export default function App() {
           </div>
           <h1 className="text-4xl sm:text-5xl font-bold tracking-tight mb-4 text-zinc-900 dark:text-white font-display">Budgeted</h1>
           <p className="text-zinc-500 dark:text-zinc-400 mb-8 sm:mb-12 leading-relaxed text-base sm:text-lg">The professional way to track expenses, split bills, and manage shared budgets.</p>
+          
+          {loginError && (
+            <div className="mb-6 p-4 bg-red-50 dark:bg-red-500/10 border border-red-100 dark:border-red-500/20 text-red-600 dark:text-red-400 text-xs font-bold rounded-2xl">
+              {loginError.includes('auth/unauthorized-domain') 
+                ? "Error: This domain is not authorized in Firebase. Please add your Vercel URL to 'Authorized Domains' in the Firebase Console."
+                : loginError}
+            </div>
+          )}
+
           <button
-            onClick={signIn}
+            onClick={handleSignIn}
             className="w-full py-4 sm:py-5 bg-zinc-900 dark:bg-white text-white dark:text-zinc-950 rounded-2xl font-bold hover:bg-zinc-800 dark:hover:bg-zinc-100 transition-all active:scale-[0.98] flex items-center justify-center gap-4 shadow-xl shadow-zinc-900/10 dark:shadow-white/10 text-base sm:text-lg outline-none focus:ring-4 focus:ring-indigo-500/40"
           >
             <img src="https://www.gstatic.com/firebasejs/ui/2.0.0/images/auth/google.svg" alt="" className="w-6 h-6 bg-white rounded-full p-0.5" />
