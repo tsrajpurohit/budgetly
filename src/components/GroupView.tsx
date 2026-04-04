@@ -492,8 +492,8 @@ export default function GroupView({ groupId, user, onBack, theme }: GroupViewPro
         Analyze the following spending data for a group budget named "${group?.name}".
         Group Type: ${group?.type}
         Budget Type: ${group?.budgetType}
-        Max Budget: ${group?.maxBudget || 'No limit'}
-        Total Spent in Current Period: ${totalSpent.toFixed(2)}
+        Max Budget: ${group?.maxBudget ? `₹${group.maxBudget}` : 'No limit'}
+        Total Spent in Current Period: ₹${totalSpent.toFixed(2)}
         
         Expenses:
         ${JSON.stringify(expenseSummary, null, 2)}
@@ -607,9 +607,9 @@ export default function GroupView({ groupId, user, onBack, theme }: GroupViewPro
             <p className="text-[10px] font-bold text-zinc-500 uppercase tracking-[0.2em] mb-4 font-display">Total Group Spend</p>
             <p 
               className="text-4xl md:text-2xl lg:text-3xl xl:text-4xl font-bold text-zinc-900 dark:text-white font-display tracking-tight truncate"
-              title={`$${formatCurrency(totalSpent)}`}
+              title={`₹${formatCurrency(totalSpent)}`}
             >
-              ${formatCurrency(totalSpent)}
+              ₹{formatCurrency(totalSpent)}
             </p>
             {group.maxBudget && (
               <div className="mt-6">
@@ -626,7 +626,7 @@ export default function GroupView({ groupId, user, onBack, theme }: GroupViewPro
                   />
                 </div>
                 <p className="text-[10px] text-zinc-500 mt-2 font-medium">
-                  ${formatCurrency(currentBudgetSpent)} of ${formatCurrency(group.maxBudget)}
+                  ₹{formatCurrency(currentBudgetSpent)} of ₹{formatCurrency(group.maxBudget)}
                 </p>
               </div>
             )}
@@ -641,9 +641,9 @@ export default function GroupView({ groupId, user, onBack, theme }: GroupViewPro
             <p className="text-[10px] font-bold text-zinc-500 uppercase tracking-[0.2em] mb-4 font-display">Your Share</p>
             <p 
               className="text-4xl md:text-2xl lg:text-3xl xl:text-4xl font-bold text-zinc-900 dark:text-white font-display tracking-tight truncate"
-              title={`$${formatCurrency(perPerson)}`}
+              title={`₹${formatCurrency(perPerson)}`}
             >
-              ${formatCurrency(perPerson)}
+              ₹{formatCurrency(perPerson)}
             </p>
             <p className="text-xs font-medium text-zinc-500 mt-4">
               {totalSpent > 0 ? ((userSpent / totalSpent) * 100).toFixed(0) : 0}% of total paid by you
@@ -661,9 +661,9 @@ export default function GroupView({ groupId, user, onBack, theme }: GroupViewPro
             </p>
             <p 
               className={`text-4xl md:text-2xl lg:text-3xl xl:text-4xl font-bold font-display tracking-tight truncate ${balance >= 0 ? 'text-emerald-600 dark:text-emerald-400' : 'text-red-600 dark:text-red-400'}`}
-              title={`$${formatCurrency(Math.abs(balance))}`}
+              title={`₹${formatCurrency(Math.abs(balance))}`}
             >
-              ${formatCurrency(Math.abs(balance))}
+              ₹{formatCurrency(Math.abs(balance))}
             </p>
           </div>
         </button>
@@ -692,7 +692,7 @@ export default function GroupView({ groupId, user, onBack, theme }: GroupViewPro
                     axisLine={false} 
                     tickLine={false} 
                     tick={{ fontSize: 10, fill: '#a1a1aa', fontWeight: 500 }}
-                    tickFormatter={(value) => `$${value}`}
+                    tickFormatter={(value) => `₹${value}`}
                   />
                   <Tooltip 
                     contentStyle={{ 
@@ -705,7 +705,7 @@ export default function GroupView({ groupId, user, onBack, theme }: GroupViewPro
                     }}
                     itemStyle={{ fontSize: '12px', fontWeight: 600, color: theme === 'dark' ? '#ffffff' : '#18181b' }}
                     labelStyle={{ fontSize: '10px', color: '#71717a', marginBottom: '4px', textTransform: 'uppercase', fontWeight: 700 }}
-                    formatter={(value: number) => [`$${formatCurrency(value)}`, 'Spent']}
+                    formatter={(value: number) => [`₹${formatCurrency(value)}`, 'Spent']}
                   />
                   <Line 
                     type="monotone" 
@@ -743,7 +743,7 @@ export default function GroupView({ groupId, user, onBack, theme }: GroupViewPro
                     ))}
                   </Pie>
                   <Tooltip 
-                    formatter={(value: number) => [`$${formatCurrency(value)}`, 'Total']}
+                    formatter={(value: number) => [`₹${formatCurrency(value)}`, 'Total']}
                     contentStyle={{ 
                       borderRadius: '16px', 
                       border: 'none', 
@@ -817,9 +817,9 @@ export default function GroupView({ groupId, user, onBack, theme }: GroupViewPro
                       <div className="text-left sm:text-right min-w-0">
                         <p 
                           className="text-lg sm:text-xl font-bold text-zinc-900 dark:text-white font-mono tracking-tight truncate"
-                          title={`$${formatCurrency(expense.amount)}`}
+                          title={`₹${formatCurrency(expense.amount)}`}
                         >
-                          ${formatCurrency(expense.amount)}
+                          ₹{formatCurrency(expense.amount)}
                         </p>
                         <p className="text-[9px] sm:text-[10px] font-bold text-zinc-500 uppercase tracking-widest">Amount</p>
                       </div>
@@ -925,7 +925,7 @@ export default function GroupView({ groupId, user, onBack, theme }: GroupViewPro
                 <div>
                   <label className="block text-[10px] font-bold text-zinc-400 uppercase tracking-[0.15em] mb-2">Amount</label>
                   <div className="relative">
-                    <span className="absolute left-5 top-1/2 -translate-y-1/2 text-zinc-400 font-mono font-bold">$</span>
+                    <span className="absolute left-5 top-1/2 -translate-y-1/2 text-zinc-400 font-mono font-bold">₹</span>
                     <input
                       type="number"
                       step="0.01"
@@ -1140,7 +1140,7 @@ export default function GroupView({ groupId, user, onBack, theme }: GroupViewPro
                     <div>
                       <label className="block text-[10px] font-bold text-zinc-400 uppercase tracking-[0.15em] mb-2">Max Budget</label>
                       <div className="relative">
-                        <span className="absolute left-5 top-1/2 -translate-y-1/2 text-zinc-400 font-mono font-bold">$</span>
+                        <span className="absolute left-5 top-1/2 -translate-y-1/2 text-zinc-400 font-mono font-bold">₹</span>
                         <input
                           type="number"
                           step="0.01"
@@ -1322,7 +1322,7 @@ export default function GroupView({ groupId, user, onBack, theme }: GroupViewPro
             >
               <p id="stat-title" className="text-xs font-bold text-zinc-500 uppercase tracking-[0.2em] mb-4 font-display">{selectedStatDetails.title}</p>
               <p className="text-5xl sm:text-6xl font-bold text-zinc-900 dark:text-white font-display tracking-tight mb-2 break-all">
-                ${formatCurrency(selectedStatDetails.amount)}
+                ₹{formatCurrency(selectedStatDetails.amount)}
               </p>
               {selectedStatDetails.subtitle && (
                 <p className="text-sm font-medium text-zinc-500 mt-4">
