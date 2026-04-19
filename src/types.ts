@@ -51,6 +51,7 @@ export interface Expense {
   recurringTemplateId?: string;
   type?: TransactionType;
   relatedParty?: string;
+  attachmentUrl?: string;
 }
 
 export const CATEGORIES = [
