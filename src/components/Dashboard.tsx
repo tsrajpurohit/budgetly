@@ -232,12 +232,12 @@ export default function Dashboard({ user, groups, onSelectGroup, theme }: Dashbo
 
   return (
     <div className="max-w-6xl mx-auto">
-      <header className="mb-8 md:mb-12 flex flex-col md:flex-row md:items-end justify-between gap-6">
+      <header className="mb-6 md:mb-10 flex flex-col md:flex-row md:items-end justify-between gap-4">
         <div>
-          <h1 className="text-3xl md:text-5xl font-bold tracking-tight text-zinc-900 dark:text-white mb-2 md:mb-3 font-display">
+          <h1 className="text-2xl md:text-4xl font-bold tracking-tighter text-zinc-900 dark:text-white mb-1 md:mb-2 font-display">
             Welcome back, <span className="text-indigo-600 dark:text-indigo-400">{user.displayName?.split(' ')[0]}</span>
           </h1>
-          <p className="text-zinc-500 dark:text-zinc-400 font-medium text-base md:text-lg">Here's what's happening with your shared budgets today.</p>
+          <p className="text-zinc-500 dark:text-zinc-400 font-medium text-sm md:text-base">Here's what's happening with your shared budgets today.</p>
         </div>
         <button 
           onClick={() => (window as any).openCreateGroupModal?.()}
@@ -248,7 +248,7 @@ export default function Dashboard({ user, groups, onSelectGroup, theme }: Dashbo
         </button>
       </header>
 
-      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 md:gap-6 mb-12">
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 md:gap-5 mb-10">
         <button 
           onClick={() => {
             if (groups.length === 0) return;
@@ -258,15 +258,15 @@ export default function Dashboard({ user, groups, onSelectGroup, theme }: Dashbo
               setIsGroupsListOpen(true);
             }
           }}
-          className={`text-left bg-indigo-600 p-6 md:p-8 rounded-[24px] md:rounded-[32px] shadow-lg shadow-indigo-500/40 relative overflow-hidden group transition-all ${groups.length > 0 ? 'hover:scale-[1.02] active:scale-95 cursor-pointer' : 'cursor-default'}`}
+          className={`text-left bg-indigo-600 p-5 md:p-6 rounded-[24px] md:rounded-[28px] shadow-lg shadow-indigo-500/30 relative overflow-hidden group transition-all ${groups.length > 0 ? 'hover:scale-[1.01] active:scale-95 cursor-pointer' : 'cursor-default'}`}
         >
-          <div className="absolute top-0 right-0 w-24 h-24 md:w-32 md:h-32 bg-white/10 rounded-full -mr-12 -mt-12 md:-mr-16 md:-mt-16 transition-transform group-hover:scale-110" />
+          <div className="absolute top-0 right-0 w-20 h-20 md:w-28 md:h-28 bg-white/10 rounded-full -mr-10 -mt-10 md:-mr-14 md:-mt-14 transition-transform group-hover:scale-110" />
           <div className="relative z-10">
-            <div className="w-10 h-10 md:w-12 md:h-12 bg-white/20 backdrop-blur-md rounded-xl md:rounded-2xl flex items-center justify-center mb-4 md:mb-6">
-              <Users className="w-5 h-5 md:w-6 md:h-6 text-white" />
+            <div className="w-8 h-8 md:w-10 md:h-10 bg-white/10 backdrop-blur-md rounded-xl flex items-center justify-center mb-3 md:mb-4">
+              <Users className="w-4 h-4 md:w-5 md:h-5 text-white" />
             </div>
-            <p className="text-[10px] md:text-xs font-bold text-indigo-100 uppercase tracking-[0.2em] mb-1">Active Groups</p>
-            <p className="text-3xl md:text-4xl font-bold text-white font-display tracking-tight">{groups.length}</p>
+            <p className="text-[9px] md:text-[10px] font-bold text-indigo-100 uppercase tracking-[0.2em] mb-0.5">Active Groups</p>
+            <p className="text-2xl md:text-3xl font-bold text-white font-display tracking-tight">{groups.length}</p>
           </div>
         </button>
 
@@ -275,15 +275,15 @@ export default function Dashboard({ user, groups, onSelectGroup, theme }: Dashbo
             if (recentExpenses.length === 0) return;
             onSelectGroup(recentExpenses[0].groupId);
           }}
-          className={`text-left bg-emerald-600 p-6 md:p-8 rounded-[24px] md:rounded-[32px] shadow-lg shadow-emerald-500/40 relative overflow-hidden group transition-all ${recentExpenses.length > 0 ? 'hover:scale-[1.02] active:scale-95 cursor-pointer' : 'cursor-default'}`}
+          className={`text-left bg-emerald-600 p-5 md:p-6 rounded-[24px] md:rounded-[28px] shadow-lg shadow-emerald-500/30 relative overflow-hidden group transition-all ${recentExpenses.length > 0 ? 'hover:scale-[1.01] active:scale-95 cursor-pointer' : 'cursor-default'}`}
         >
-          <div className="absolute top-0 right-0 w-24 h-24 md:w-32 md:h-32 bg-white/10 rounded-full -mr-12 -mt-12 md:-mr-16 md:-mt-16 transition-transform group-hover:scale-110" />
+          <div className="absolute top-0 right-0 w-20 h-20 md:w-28 md:h-28 bg-white/10 rounded-full -mr-10 -mt-10 md:-mr-14 md:-mt-14 transition-transform group-hover:scale-110" />
           <div className="relative z-10">
-            <div className="w-10 h-10 md:w-12 md:h-12 bg-white/20 backdrop-blur-md rounded-xl md:rounded-2xl flex items-center justify-center mb-4 md:mb-6">
-              <Receipt className="w-5 h-5 md:w-6 md:h-6 text-white" />
+            <div className="w-8 h-8 md:w-10 md:h-10 bg-white/10 backdrop-blur-md rounded-xl flex items-center justify-center mb-3 md:mb-4">
+              <Receipt className="w-4 h-4 md:w-5 md:h-5 text-white" />
             </div>
-            <p className="text-[10px] md:text-xs font-bold text-emerald-100 uppercase tracking-[0.2em] mb-1">Recent Expenses</p>
-            <p className="text-3xl md:text-4xl font-bold text-white font-display tracking-tight">{recentExpenses.length}</p>
+            <p className="text-[9px] md:text-[10px] font-bold text-emerald-100 uppercase tracking-[0.2em] mb-0.5">Recent Expenses</p>
+            <p className="text-2xl md:text-3xl font-bold text-white font-display tracking-tight">{recentExpenses.length}</p>
           </div>
         </button>
 
@@ -292,15 +292,15 @@ export default function Dashboard({ user, groups, onSelectGroup, theme }: Dashbo
             if (alerts.length === 0) return;
             onSelectGroup(alerts[0].groupId);
           }}
-          className={`text-left bg-fuchsia-600 p-6 md:p-8 rounded-[24px] md:rounded-[32px] shadow-lg shadow-fuchsia-500/40 relative overflow-hidden group transition-all ${alerts.length > 0 ? 'hover:scale-[1.02] active:scale-95 cursor-pointer' : 'cursor-default'}`}
+          className={`text-left bg-fuchsia-600 p-5 md:p-6 rounded-[24px] md:rounded-[28px] shadow-lg shadow-fuchsia-500/30 relative overflow-hidden group transition-all ${alerts.length > 0 ? 'hover:scale-[1.01] active:scale-95 cursor-pointer' : 'cursor-default'}`}
         >
-          <div className="absolute top-0 right-0 w-24 h-24 md:w-32 md:h-32 bg-white/10 rounded-full -mr-12 -mt-12 md:-mr-16 md:-mt-16 transition-transform group-hover:scale-110" />
+          <div className="absolute top-0 right-0 w-20 h-20 md:w-28 md:h-28 bg-white/10 rounded-full -mr-10 -mt-10 md:-mr-14 md:-mt-14 transition-transform group-hover:scale-110" />
           <div className="relative z-10">
-            <div className="w-10 h-10 md:w-12 md:h-12 bg-white/20 backdrop-blur-md rounded-xl md:rounded-2xl flex items-center justify-center mb-4 md:mb-6">
-              <TrendingUp className="w-5 h-5 md:w-6 md:h-6 text-white" />
+            <div className="w-8 h-8 md:w-10 md:h-10 bg-white/10 backdrop-blur-md rounded-xl flex items-center justify-center mb-3 md:mb-4">
+              <TrendingUp className="w-4 h-4 md:w-5 md:h-5 text-white" />
             </div>
-            <p className="text-[10px] md:text-xs font-bold text-fuchsia-100 uppercase tracking-[0.2em] mb-1">Active Alerts</p>
-            <p className="text-3xl md:text-4xl font-bold text-white font-display tracking-tight">{alerts.length}</p>
+            <p className="text-[9px] md:text-[10px] font-bold text-fuchsia-100 uppercase tracking-[0.2em] mb-0.5">Active Alerts</p>
+            <p className="text-2xl md:text-3xl font-bold text-white font-display tracking-tight">{alerts.length}</p>
           </div>
         </button>
       </div>
@@ -352,34 +352,34 @@ export default function Dashboard({ user, groups, onSelectGroup, theme }: Dashbo
       )}
     </AnimatePresence>
 
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-12">
-        <div className="lg:col-span-2 space-y-12">
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+        <div className="lg:col-span-2 space-y-8">
           <section>
-            <div className="flex items-center justify-between mb-6">
-              <h2 className="text-xl font-bold tracking-tight text-zinc-900 dark:text-white font-display">Recent Activity</h2>
+            <div className="flex items-center justify-between mb-4">
+              <h2 className="text-lg font-bold tracking-tight text-zinc-900 dark:text-white font-display">Recent Activity</h2>
             </div>
-            <div className="bg-white dark:bg-zinc-900 rounded-[32px] border border-zinc-200 dark:border-zinc-800 shadow-xl shadow-zinc-200/50 dark:shadow-black/20 overflow-hidden">
+            <div className="bg-white dark:bg-zinc-900 rounded-[28px] border border-zinc-200 dark:border-zinc-800 shadow-xl shadow-zinc-200/40 dark:shadow-black/20 overflow-hidden">
               {recentExpenses.length === 0 ? (
-                <div className="p-16 text-center">
-                  <div className="w-16 h-16 bg-zinc-50 dark:bg-zinc-800 rounded-full flex items-center justify-center mx-auto mb-4">
-                    <Receipt className="w-8 h-8 text-zinc-300 dark:text-zinc-600" />
+                <div className="p-12 text-center text-sm">
+                  <div className="w-12 h-12 bg-zinc-50 dark:bg-zinc-800 rounded-full flex items-center justify-center mx-auto mb-3">
+                    <Receipt className="w-6 h-6 text-zinc-300 dark:text-zinc-600" />
                   </div>
                   <p className="text-zinc-500 dark:text-zinc-400 font-medium">No recent expenses found.</p>
                 </div>
               ) : (
                 <div className="divide-y divide-zinc-100 dark:divide-zinc-800">
                   {recentExpenses.map(expense => (
-                    <div key={expense.id} className="p-4 sm:p-6 flex flex-col sm:flex-row sm:items-center justify-between transition-all group hover:bg-zinc-50 dark:hover:bg-zinc-800/50 gap-4">
-                      <div className="flex items-center gap-4 min-w-0">
-                        <div className="w-12 h-12 sm:w-14 sm:h-14 bg-zinc-50 dark:bg-zinc-800 rounded-2xl flex items-center justify-center text-zinc-400 dark:text-zinc-500 transition-all border border-zinc-100 dark:border-transparent shrink-0">
-                          <Receipt className="w-6 h-6 sm:w-7 sm:h-7" />
+                    <div key={expense.id} className="p-4 sm:p-5 flex flex-col sm:flex-row sm:items-center justify-between transition-all group hover:bg-zinc-50 dark:hover:bg-zinc-800/50 gap-3">
+                      <div className="flex items-center gap-3.5 min-w-0">
+                        <div className="w-11 h-11 sm:w-12 sm:h-12 bg-zinc-50 dark:bg-zinc-800 rounded-xl flex items-center justify-center text-zinc-400 dark:text-zinc-500 transition-all border border-zinc-100 dark:border-transparent shrink-0">
+                          <Receipt className="w-5 h-5 sm:w-6 sm:h-6" />
                         </div>
                         <div className="min-w-0">
-                          <p className="font-bold text-zinc-900 dark:text-white text-base sm:text-lg truncate">{expense.description}</p>
-                          <div className="flex flex-wrap items-center gap-2 sm:gap-3 mt-1">
-                            <span className="text-[9px] sm:text-[10px] font-bold text-indigo-600 dark:text-indigo-400 uppercase tracking-wider px-2 py-0.5 sm:px-2.5 sm:py-1 bg-indigo-50 dark:bg-indigo-500/10 rounded-lg border border-indigo-100 dark:border-indigo-500/20">{expense.category}</span>
+                          <p className="font-bold text-zinc-900 dark:text-white text-sm sm:text-base truncate">{expense.description}</p>
+                          <div className="flex flex-wrap items-center gap-2 mt-0.5">
+                            <span className="text-[8px] sm:text-[9px] font-bold text-indigo-600 dark:text-indigo-400 uppercase tracking-wider px-1.5 py-0.5 bg-indigo-50 dark:bg-indigo-500/10 rounded-md border border-indigo-100 dark:border-indigo-500/20">{expense.category}</span>
                             {expense.type && expense.type !== 'expense' && (
-                              <span className={`text-[9px] sm:text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-lg border ${
+                              <span className={`text-[8px] sm:text-[9px] font-bold uppercase tracking-wider px-1.5 py-0.5 rounded-md border ${
                                 expense.type === 'borrowed' ? 'bg-amber-50 dark:bg-amber-500/10 text-amber-600 dark:text-amber-400 border-amber-100 dark:border-amber-500/20' :
                                 expense.type === 'lent' ? 'bg-emerald-50 dark:bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border-emerald-100 dark:border-emerald-500/20' :
                                 'bg-indigo-50 dark:bg-indigo-500/10 text-indigo-600 dark:text-indigo-400 border-indigo-100 dark:border-indigo-500/20'
@@ -387,42 +387,39 @@ export default function Dashboard({ user, groups, onSelectGroup, theme }: Dashbo
                                 {expense.type} {expense.relatedParty ? `• ${expense.relatedParty}` : ''}
                               </span>
                             )}
-                            <span className="text-[9px] sm:text-[10px] text-zinc-500 font-mono font-bold">
+                            <span className="text-[8px] sm:text-[9px] text-zinc-500 font-mono font-bold">
                               {expense.date.toDate().toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
-                            </span>
-                            <span className="text-[9px] sm:text-[10px] text-zinc-400 font-medium italic truncate max-w-[100px] sm:max-w-none">
-                              in {groups.find(g => g.id === expense.groupId)?.name}
                             </span>
                           </div>
                         </div>
                       </div>
-                      <div className="flex items-center justify-between sm:justify-end gap-4 sm:gap-6 border-t border-zinc-100 dark:border-zinc-800 sm:border-0 pt-3 sm:pt-0 shrink-0">
+                      <div className="flex items-center justify-between sm:justify-end gap-3 sm:gap-5 border-t border-zinc-50 dark:border-zinc-800 sm:border-0 pt-2 sm:pt-0 shrink-0">
                         <div className="text-left sm:text-right min-w-0">
                           <p 
-                            className={`text-lg sm:text-xl font-bold font-mono truncate ${expense.paidBy === user.uid ? 'text-emerald-600 dark:text-emerald-400' : 'text-zinc-900 dark:text-white'}`}
+                            className={`text-base sm:text-lg font-bold font-mono truncate ${expense.paidBy === user.uid ? 'text-emerald-600 dark:text-emerald-400' : 'text-zinc-900 dark:text-white'}`}
                             title={`₹${formatCurrency(expense.amount)}`}
                           >
                             ₹{formatCurrency(expense.amount)}
                           </p>
-                          <p className="text-[9px] sm:text-[10px] text-zinc-500 uppercase tracking-widest font-bold mt-0.5">
+                          <p className="text-[8px] sm:text-[9px] text-zinc-500 uppercase tracking-widest font-bold mt-0">
                             {expense.paidBy === user.uid ? 'You paid' : 'Someone paid'}
                           </p>
                         </div>
                         {expense.paidBy === user.uid && (
-                          <div className="flex items-center gap-1">
+                          <div className="flex items-center gap-0.5">
                             <button 
                               onClick={() => setEditingExpense(expense)}
-                              className="p-2 text-zinc-400 hover:text-indigo-600 dark:hover:text-indigo-400 hover:bg-indigo-50 dark:hover:bg-indigo-500/10 rounded-xl lg:opacity-0 group-hover:opacity-100 focus:opacity-100 focus:bg-indigo-50 dark:focus:bg-indigo-500/10 transition-all active:scale-90 outline-none focus:ring-2 focus:ring-indigo-500"
+                              className="p-1.5 text-zinc-400 hover:text-indigo-600 dark:hover:text-indigo-400 hover:bg-indigo-50 dark:hover:bg-indigo-500/10 rounded-lg lg:opacity-0 group-hover:opacity-100 focus:opacity-100 transition-all outline-none"
                               title="Edit Expense"
                             >
-                              <Pencil className="w-4 h-4" />
+                              <Pencil className="w-3.5 h-3.5" />
                             </button>
                             <button 
                               onClick={() => setExpenseToDelete(expense)}
-                              className="p-2 text-zinc-400 hover:text-red-600 dark:hover:text-red-400 hover:bg-red-50 dark:hover:bg-red-500/10 rounded-xl lg:opacity-0 group-hover:opacity-100 focus:opacity-100 focus:bg-red-50 dark:focus:bg-red-500/10 transition-all active:scale-90 outline-none focus:ring-2 focus:ring-red-500"
+                              className="p-1.5 text-zinc-400 hover:text-red-600 dark:hover:text-red-400 hover:bg-red-50 dark:hover:bg-red-500/10 rounded-lg lg:opacity-0 group-hover:opacity-100 focus:opacity-100 transition-all outline-none"
                               title="Delete Expense"
                             >
-                              <Trash2 className="w-4 h-4" />
+                              <Trash2 className="w-3.5 h-3.5" />
                             </button>
                           </div>
                         )}
@@ -435,18 +432,18 @@ export default function Dashboard({ user, groups, onSelectGroup, theme }: Dashbo
           </section>
         </div>
 
-        <div className="space-y-12">
+        <div className="space-y-8">
           <section>
-            <div className="flex items-center justify-between mb-6">
-              <h2 className="text-xl font-bold tracking-tight text-zinc-900 dark:text-white font-display">Budget Alerts</h2>
+            <div className="flex items-center justify-between mb-4">
+              <h2 className="text-lg font-bold tracking-tight text-zinc-900 dark:text-white font-display">Budget Alerts</h2>
             </div>
-            <div className="space-y-4">
+            <div className="space-y-3">
               {alerts.length === 0 ? (
-                <div className="p-10 bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-[32px] text-center shadow-xl shadow-zinc-200/50 dark:shadow-black/20">
-                  <div className="w-12 h-12 bg-emerald-500/10 rounded-full flex items-center justify-center mx-auto mb-3">
-                    <TrendingDown className="w-6 h-6 text-emerald-500" />
+                <div className="p-8 bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-[28px] text-center shadow-xl shadow-zinc-200/40 dark:shadow-black/20">
+                  <div className="w-10 h-10 bg-emerald-500/10 rounded-full flex items-center justify-center mx-auto mb-2.5">
+                    <TrendingDown className="w-5 h-5 text-emerald-500" />
                   </div>
-                  <p className="text-zinc-500 text-sm font-medium">All budgets on track</p>
+                  <p className="text-zinc-500 text-xs font-medium">All budgets on track</p>
                 </div>
               ) : (
                 alerts.map(alert => (
