@@ -270,51 +270,51 @@ export default function App() {
           <div className="absolute top-1/2 -right-32 w-64 h-64 bg-fuchsia-600 rounded-full blur-[100px]" />
         </div>
 
-        <div className="p-8 relative z-10 shrink-0">
-          <div className="flex items-center justify-between mb-10">
-            <div className="flex items-center gap-3">
-              <div className="w-10 h-10 bg-gradient-to-br from-indigo-500 to-fuchsia-500 rounded-xl flex items-center justify-center shadow-lg shadow-indigo-500/20">
-                <Wallet className="w-6 h-6 text-white" />
+        <div className="p-6 relative z-10 shrink-0">
+          <div className="flex items-center justify-between mb-8">
+            <div className="flex items-center gap-2.5">
+              <div className="w-9 h-9 bg-gradient-to-br from-indigo-500 to-fuchsia-500 rounded-xl flex items-center justify-center shadow-lg shadow-indigo-500/20">
+                <Wallet className="w-5 h-5 text-white" />
               </div>
-              <span className="text-xl font-bold tracking-tight text-zinc-900 dark:text-white font-display">Budgeted</span>
+              <span className="text-lg font-bold tracking-tight text-zinc-900 dark:text-white font-display">Budgeted</span>
             </div>
             <button 
               onClick={() => setIsSidebarOpen(false)}
-              className="lg:hidden p-2 text-zinc-500 hover:text-zinc-900 dark:hover:text-white"
+              className="lg:hidden p-1.5 text-zinc-500 hover:text-zinc-900 dark:hover:text-white"
             >
-              <X className="w-6 h-6" />
+              <X className="w-5 h-5" />
             </button>
           </div>
 
-          <nav className="space-y-1.5">
+          <nav className="space-y-1">
             <button 
               onClick={() => {
                 setSelectedGroupId(null);
                 setIsSidebarOpen(false);
               }}
-              className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl transition-all duration-300 ${!selectedGroupId ? 'bg-zinc-900 dark:bg-white text-white dark:text-zinc-950 shadow-xl shadow-zinc-900/10 dark:shadow-white/10' : 'text-zinc-500 dark:text-zinc-400 hover:bg-zinc-100 dark:hover:bg-white/5 hover:text-zinc-900 dark:hover:text-white'}`}
+              className={`w-full flex items-center gap-3 px-3.5 py-2.5 rounded-xl transition-all duration-300 ${!selectedGroupId ? 'bg-zinc-900 dark:bg-white text-white dark:text-zinc-950 shadow-lg shadow-zinc-900/10 dark:shadow-white/10' : 'text-zinc-500 dark:text-zinc-400 hover:bg-zinc-100 dark:hover:bg-white/5 hover:text-zinc-900 dark:hover:text-white'}`}
             >
-              <LayoutDashboard className="w-5 h-5" />
-              <span className="font-bold">Dashboard</span>
+              <LayoutDashboard className="w-4.5 h-4.5" />
+              <span className="font-bold text-sm">Dashboard</span>
             </button>
           </nav>
         </div>
 
-        <div className="flex-1 overflow-y-auto px-4 py-2 relative z-10 custom-scrollbar min-h-[200px]">
-          <div className="flex items-center justify-between px-4 mb-4">
-            <span className="text-[10px] font-bold uppercase tracking-[0.2em] text-zinc-400 dark:text-zinc-500">Your Groups</span>
+        <div className="flex-1 overflow-y-auto px-4 py-1 relative z-10 custom-scrollbar min-h-[200px]">
+          <div className="flex items-center justify-between px-3.5 mb-3">
+            <span className="text-[9px] font-bold uppercase tracking-[0.2em] text-zinc-400 dark:text-zinc-500">Your Groups</span>
             <button 
               onClick={() => {
                 setIsCreateModalOpen(true);
                 setIsSidebarOpen(false);
               }}
-              className="p-1.5 hover:bg-zinc-100 dark:hover:bg-white/10 rounded-lg transition-colors text-zinc-400 dark:text-zinc-500 hover:text-zinc-900 dark:hover:text-white"
+              className="p-1 hover:bg-zinc-100 dark:hover:bg-white/10 rounded-lg transition-colors text-zinc-400 dark:text-zinc-500 hover:text-zinc-900 dark:hover:text-white"
             >
-              <Plus className="w-4 h-4" />
+              <Plus className="w-3.5 h-3.5" />
             </button>
           </div>
 
-          <div className="space-y-1">
+          <div className="space-y-0.5">
             {groups.map(group => (
               <button
                 key={group.id}
@@ -322,13 +322,13 @@ export default function App() {
                   setSelectedGroupId(group.id);
                   setIsSidebarOpen(false);
                 }}
-                className={`w-full flex items-center justify-between px-4 py-3 rounded-xl transition-all duration-300 group ${selectedGroupId === group.id ? 'bg-indigo-600 text-white shadow-lg shadow-indigo-600/20' : 'text-zinc-500 dark:text-zinc-400 hover:bg-zinc-100 dark:hover:bg-white/5 hover:text-zinc-900 dark:hover:text-white'}`}
+                className={`w-full flex items-center justify-between px-3.5 py-2.5 rounded-xl transition-all duration-300 group ${selectedGroupId === group.id ? 'bg-indigo-600 text-white shadow-md shadow-indigo-600/10' : 'text-zinc-500 dark:text-zinc-400 hover:bg-zinc-100 dark:hover:bg-white/5 hover:text-zinc-900 dark:hover:text-white'}`}
               >
-                <div className="flex items-center gap-3">
-                  <div className={`w-2 h-2 rounded-full transition-transform group-hover:scale-125 ${group.type === 'personal' ? 'bg-blue-400' : group.type === 'household' ? 'bg-emerald-400' : 'bg-orange-400'}`} />
-                  <span className="truncate text-sm font-medium">{group.name}</span>
+                <div className="flex items-center gap-2.5">
+                  <div className={`w-1.5 h-1.5 rounded-full transition-transform group-hover:scale-125 ${group.type === 'personal' ? 'bg-blue-400' : group.type === 'household' ? 'bg-emerald-400' : 'bg-orange-400'}`} />
+                  <span className="truncate text-[13px] font-medium">{group.name}</span>
                 </div>
-                {selectedGroupId === group.id && <ChevronRight className="w-4 h-4 opacity-70" />}
+                {selectedGroupId === group.id && <ChevronRight className="w-3.5 h-3.5 opacity-70" />}
               </button>
             ))}
             {groups.length === 0 && (
@@ -339,12 +339,12 @@ export default function App() {
           </div>
         </div>
 
-        <div className="p-6 mt-auto relative z-10 shrink-0">
-          <div className="p-4 bg-zinc-50 dark:bg-white/5 rounded-2xl border border-zinc-200 dark:border-white/10 mb-4 backdrop-blur-md">
-            <div className="flex items-center gap-3">
-              <img src={user.photoURL || `https://ui-avatars.com/api/?name=${user.displayName}&background=random`} alt="" className="w-10 h-10 rounded-xl shadow-sm border border-zinc-200 dark:border-white/10" />
+        <div className="p-4 mt-auto relative z-10 shrink-0">
+          <div className="p-3 bg-zinc-50 dark:bg-white/5 rounded-2xl border border-zinc-200 dark:border-white/10 mb-3 backdrop-blur-md">
+            <div className="flex items-center gap-2.5">
+              <img src={user.photoURL || `https://ui-avatars.com/api/?name=${user.displayName}&background=random`} alt="" className="w-9 h-9 rounded-xl shadow-sm border border-zinc-200 dark:border-white/10" />
               <div className="flex-1 min-w-0">
-                <p className="text-sm font-bold text-zinc-900 dark:text-white truncate">{user.displayName}</p>
+                <p className="text-xs font-bold text-zinc-900 dark:text-white truncate">{user.displayName}</p>
                 <p className="text-[10px] text-zinc-500 truncate font-mono">{user.email}</p>
               </div>
             </div>
@@ -352,17 +352,17 @@ export default function App() {
           <div className="flex items-center gap-2">
             <button 
               onClick={logOut}
-              className="flex-1 flex items-center justify-center gap-2 px-4 py-3 rounded-xl text-zinc-500 dark:text-zinc-400 hover:bg-red-500/10 hover:text-red-600 dark:hover:text-red-400 transition-all duration-300 font-bold text-sm"
+              className="flex-1 flex items-center justify-center gap-2 px-3 py-2.5 rounded-xl text-zinc-500 dark:text-zinc-400 hover:bg-red-500/10 hover:text-red-600 dark:hover:text-red-400 transition-all duration-300 font-bold text-xs"
             >
-              <LogOut className="w-4 h-4" />
+              <LogOut className="w-3.5 h-3.5" />
               Sign Out
             </button>
             <button 
               onClick={toggleTheme}
-              className="p-3 rounded-xl text-zinc-500 dark:text-zinc-400 hover:bg-zinc-100 dark:hover:bg-white/5 hover:text-zinc-900 dark:hover:text-white transition-all duration-300"
+              className="p-2.5 rounded-xl text-zinc-500 dark:text-zinc-400 hover:bg-zinc-100 dark:hover:bg-white/5 hover:text-zinc-900 dark:hover:text-white transition-all duration-300"
               title={theme === 'dark' ? 'Switch to Light Mode' : 'Switch to Dark Mode'}
             >
-              {theme === 'dark' ? <Sun className="w-5 h-5" /> : <Moon className="w-5 h-5" />}
+              {theme === 'dark' ? <Sun className="w-4.5 h-4.5" /> : <Moon className="w-4.5 h-4.5" />}
             </button>
           </div>
         </div>
@@ -410,7 +410,7 @@ export default function App() {
               animate={{ opacity: 1, y: 0 }}
               exit={{ opacity: 0, y: -10 }}
               transition={{ duration: 0.3 }}
-              className="p-4 sm:p-10 max-w-7xl mx-auto"
+              className="p-3 sm:p-6 max-w-7xl mx-auto"
             >
               <Dashboard 
                 user={user} 
@@ -429,7 +429,7 @@ export default function App() {
               animate={{ opacity: 1, y: 0 }}
               exit={{ opacity: 0, y: -10 }}
               transition={{ duration: 0.3 }}
-              className="p-4 sm:p-10 max-w-7xl mx-auto"
+              className="p-3 sm:p-6 max-w-7xl mx-auto"
             >
               <GroupView 
                 groupId={selectedGroupId} 
