@@ -33,6 +33,8 @@ export interface GroupMember {
   email?: string;
 }
 
+export type RecurrenceFrequency = 'daily' | 'weekly' | 'monthly' | 'yearly';
+
 export interface Expense {
   id: string;
   amount: number;
@@ -43,6 +45,8 @@ export interface Expense {
   createdAt: Timestamp;
   splitType: SplitType;
   isRecurring?: boolean;
+  frequency?: RecurrenceFrequency;
+  endDate?: Timestamp;
   recurringTemplateId?: string;
 }
 
@@ -55,5 +59,6 @@ export const CATEGORIES = [
   'Shopping',
   'Health',
   'Travel',
+  'Investment',
   'Other'
 ];
