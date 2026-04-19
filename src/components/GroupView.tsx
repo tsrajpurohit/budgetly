@@ -21,7 +21,9 @@ import {
   Pencil,
   Download,
   Grid3X3,
-  X
+  ChevronRight,
+  X,
+  Search
 } from 'lucide-react';
 import Markdown from 'react-markdown';
 import { GoogleGenAI } from "@google/genai";
@@ -86,6 +88,7 @@ export default function GroupView({ groupId, user, onBack, theme }: GroupViewPro
   const [recurrenceEndDate, setRecurrenceEndDate] = useState('');
   const [transactionType, setTransactionType] = useState<TransactionType>('expense');
   const [relatedParty, setRelatedParty] = useState('');
+  const [isPayorMe, setIsPayorMe] = useState(true);
   const [newMemberEmail, setNewMemberEmail] = useState('');
   
   // Settings states
@@ -103,11 +106,15 @@ export default function GroupView({ groupId, user, onBack, theme }: GroupViewPro
 
   // Stat details modal state
   const [selectedStatDetails, setSelectedStatDetails] = useState<{ title: string; amount: number; subtitle?: string } | null>(null);
+  const [selectedLedgerPerson, setSelectedLedgerPerson] = useState<string | null>(null);
+  const [ledgerViewMode, setLedgerViewMode] = useState<'lent' | 'borrowed' | null>(null);
+  const [expenseSearchTerm, setExpenseSearchTerm] = useState('');
 
   const statModalRef = useRef<HTMLDivElement>(null);
   const analysisModalRef = useRef<HTMLDivElement>(null);
   const deleteGroupModalRef = useRef<HTMLDivElement>(null);
   const deleteExpenseModalRef = useRef<HTMLDivElement>(null);
+  const ledgerSectionRef = useRef<HTMLDivElement>(null);
 
   const closeAnalysisModal = () => {
     setIsAnalysisModalOpen(false);
@@ -211,7 +218,8 @@ export default function GroupView({ groupId, user, onBack, theme }: GroupViewPro
       setFrequency(editingExpense.frequency || 'monthly');
       setRecurrenceEndDate(editingExpense.endDate ? editingExpense.endDate.toDate().toISOString().split('T')[0] : '');
       setTransactionType(editingExpense.type || 'expense');
-      setRelatedParty(editingExpense.relatedParty || '');
+      setRelatedParty(editingExpense.relatedParty || (editingExpense.paidBy.startsWith('external_person_') ? editingExpense.paidBy.replace('external_person_', '') : ''));
+      setIsPayorMe(editingExpense.paidBy === user.uid);
       setIsAddExpenseOpen(true);
     } else {
       setAmount('');
@@ -223,6 +231,7 @@ export default function GroupView({ groupId, user, onBack, theme }: GroupViewPro
       setRecurrenceEndDate('');
       setTransactionType('expense');
       setRelatedParty('');
+      setIsPayorMe(true);
     }
   }, [editingExpense]);
 
@@ -328,7 +337,7 @@ export default function GroupView({ groupId, user, onBack, theme }: GroupViewPro
         amount: parseFloat(amount),
         description: description.trim(),
         category,
-        paidBy: editingExpense ? editingExpense.paidBy : user.uid,
+        paidBy: isPayorMe ? user.uid : 'external_person_' + relatedParty.trim(),
         date: Timestamp.fromDate(new Date(date)),
         createdAt: editingExpense ? editingExpense.createdAt : serverTimestamp(),
         splitType: 'equal' as const,
@@ -511,6 +520,69 @@ export default function GroupView({ groupId, user, onBack, theme }: GroupViewPro
 
   const netLent = totalLent - totalRepaymentsIn;
   const netBorrowed = totalBorrowed - totalRepaymentsOut;
+
+  // Person-wise Ledger Calculation
+  const getPersonLedger = () => {
+    const people = new Set<string>();
+    expenses.forEach(e => {
+      if (e.relatedParty) people.add(e.relatedParty);
+    });
+
+    return Array.from(people).map(name => {
+      const personExpenses = expenses.filter(e => e.relatedParty === name);
+      const lent = personExpenses.filter(e => e.type === 'lent').reduce((sum, e) => sum + e.amount, 0);
+      const borrowed = personExpenses.filter(e => e.type === 'borrowed').reduce((sum, e) => sum + e.amount, 0);
+      
+      // Repayment by them (to me) - usually when e.paidBy !== user.uid for a repayment linked to a lent
+      // But we simplified: repayments in are by them.
+      const repaidByThem = personExpenses.filter(e => e.type === 'repayment' && e.paidBy !== user.uid).reduce((sum, e) => sum + e.amount, 0);
+      
+      // Repayment by me (to them)
+      const repaidByMe = personExpenses.filter(e => e.type === 'repayment' && e.paidBy === user.uid).reduce((sum, e) => sum + e.amount, 0);
+
+      const net = (lent - repaidByThem) - (borrowed - repaidByMe);
+      
+      return {
+        name,
+        lent,
+        borrowed,
+        repaidByThem,
+        repaidByMe,
+        net,
+        history: personExpenses.sort((a, b) => b.date.toMillis() - a.date.toMillis())
+      };
+    }).sort((a, b) => Math.abs(b.net) - Math.abs(a.net));
+  };
+
+  const personLedger = getPersonLedger();
+
+  const filteredExpenses = expenses.filter(expense => {
+    const searchLower = expenseSearchTerm.toLowerCase().trim();
+    if (!searchLower) return true;
+    
+    return (
+      expense.description.toLowerCase().includes(searchLower) ||
+      expense.amount.toString().includes(searchLower) ||
+      expense.category.toLowerCase().includes(searchLower) ||
+      (expense.relatedParty && expense.relatedParty.toLowerCase().includes(searchLower))
+    );
+  });
+
+  const handleOpenLedger = (mode: 'lent' | 'borrowed') => {
+    setLedgerViewMode(mode);
+    setTimeout(() => {
+      ledgerSectionRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }, 100);
+  };
+
+  const handleDirectSettlement = (personName: string, amount: number, type: 'lent' | 'borrowed') => {
+    setTransactionType('repayment');
+    setRelatedParty(personName);
+    setAmount(Math.abs(amount).toString());
+    setDescription(`Settlement with ${personName}`);
+    setIsPayorMe(type === 'borrowed');
+    setIsAddExpenseOpen(true);
+  };
 
   // Chart Data Preparation
   const getLineChartData = () => {
@@ -898,7 +970,10 @@ export default function GroupView({ groupId, user, onBack, theme }: GroupViewPro
       </div>
 
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-6 mb-12">
-        <div className="bg-emerald-50/50 dark:bg-emerald-500/5 p-6 rounded-[32px] border border-emerald-100 dark:border-emerald-500/10 shadow-lg shadow-emerald-500/5 transition-all hover:bg-emerald-50 dark:hover:bg-emerald-500/10 group">
+        <button
+          onClick={() => handleOpenLedger('lent')}
+          className="bg-emerald-50/50 dark:bg-emerald-500/5 p-6 rounded-[32px] border border-emerald-100 dark:border-emerald-500/10 shadow-lg shadow-emerald-500/5 transition-all hover:bg-emerald-50 dark:hover:bg-emerald-500/10 group text-left active:scale-[0.98]"
+        >
           <div className="flex items-center justify-between mb-4">
             <div className="p-2 bg-white dark:bg-zinc-900 rounded-xl shadow-sm">
               <ArrowUpRight className="w-4 h-4 text-emerald-600 dark:text-emerald-400" />
@@ -925,9 +1000,12 @@ export default function GroupView({ groupId, user, onBack, theme }: GroupViewPro
               </div>
             </div>
           </div>
-        </div>
+        </button>
 
-        <div className="bg-amber-50/50 dark:bg-amber-500/5 p-6 rounded-[32px] border border-amber-100 dark:border-amber-500/10 shadow-lg shadow-amber-500/5 transition-all hover:bg-amber-50 dark:hover:bg-amber-500/10 group">
+        <button
+          onClick={() => handleOpenLedger('borrowed')}
+          className="bg-amber-50/50 dark:bg-amber-500/5 p-6 rounded-[32px] border border-amber-100 dark:border-amber-500/10 shadow-lg shadow-amber-500/5 transition-all hover:bg-amber-50 dark:hover:bg-amber-500/10 group text-left active:scale-[0.98]"
+        >
           <div className="flex items-center justify-between mb-4">
             <div className="p-2 bg-white dark:bg-zinc-900 rounded-xl shadow-sm">
               <ArrowDownLeft className="w-4 h-4 text-amber-600 dark:text-amber-400" />
@@ -954,8 +1032,148 @@ export default function GroupView({ groupId, user, onBack, theme }: GroupViewPro
               </div>
             </div>
           </div>
-        </div>
+        </button>
       </div>
+
+      <AnimatePresence>
+        {ledgerViewMode && (
+          <motion.section 
+            ref={ledgerSectionRef}
+            initial={{ opacity: 0, height: 0 }}
+            animate={{ opacity: 1, height: 'auto' }}
+            exit={{ opacity: 0, height: 0 }}
+            className="mb-12 overflow-hidden"
+          >
+            <div className="flex items-center justify-between mb-8">
+              <h2 className="text-xl font-bold tracking-tight text-zinc-900 dark:text-white flex items-center gap-3 font-display">
+                <Users className="w-6 h-6 text-zinc-400 dark:text-zinc-500" />
+                Loans & Debts Ledger: <span className="text-indigo-600 dark:text-indigo-400 capitalize">{ledgerViewMode}</span>
+              </h2>
+              <button 
+                onClick={() => setLedgerViewMode(null)}
+                className="text-[10px] font-bold text-zinc-400 hover:text-indigo-600 uppercase tracking-widest transition-colors"
+              >
+                Close Ledger
+              </button>
+            </div>
+            
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+              {personLedger
+                .filter(p => {
+                  if (ledgerViewMode === 'lent') return p.net > 0;
+                  if (ledgerViewMode === 'borrowed') return p.net < 0;
+                  return false;
+                })
+                .map(person => (
+                <motion.div
+                  key={person.name}
+                  layout
+                  className="bg-white dark:bg-zinc-900 rounded-[32px] border border-zinc-200 dark:border-zinc-800 shadow-xl shadow-zinc-200/50 dark:shadow-black/20 overflow-hidden flex flex-col pt-2"
+                >
+                  <div className="p-6">
+                    <div className="flex items-center justify-between mb-6">
+                      <div className="flex items-center gap-3">
+                        <div className="w-10 h-10 bg-zinc-100 dark:bg-zinc-800 rounded-2xl flex items-center justify-center text-zinc-500 font-bold font-display">
+                          {person.name.charAt(0).toUpperCase()}
+                        </div>
+                        <div>
+                          <h4 className="font-bold text-zinc-900 dark:text-white">{person.name}</h4>
+                          <p className={`text-[10px] font-bold uppercase tracking-wider ${
+                            person.net > 0 ? 'text-emerald-600' : person.net < 0 ? 'text-amber-600' : 'text-zinc-400'
+                          }`}>
+                            {person.net > 0 ? 'Owes you' : person.net < 0 ? 'You owe' : 'Settled'}
+                          </p>
+                        </div>
+                      </div>
+                      <div className="text-right">
+                        <p className={`text-lg font-bold font-mono ${
+                          person.net > 0 ? 'text-emerald-600' : person.net < 0 ? 'text-amber-600' : 'text-zinc-900 dark:text-white'
+                        }`}>
+                          ₹{formatCurrency(Math.abs(person.net))}
+                        </p>
+                      </div>
+                    </div>
+
+                    <div className="space-y-3">
+                      <div className="flex justify-between text-xs">
+                        <span className="text-zinc-500">Total Lent:</span>
+                        <span className="font-bold text-zinc-700 dark:text-zinc-300">₹{formatCurrency(person.lent)}</span>
+                      </div>
+                      <div className="flex justify-between text-xs">
+                        <span className="text-zinc-500">Total Borrowed:</span>
+                        <span className="font-bold text-zinc-700 dark:text-zinc-300">₹{formatCurrency(person.borrowed)}</span>
+                      </div>
+                      <div className="pt-3 border-t border-zinc-100 dark:border-zinc-800 flex justify-between text-xs font-bold">
+                        <span className="text-indigo-600 dark:text-indigo-400">Net Settled:</span>
+                        <span className="text-zinc-700 dark:text-zinc-300">₹{formatCurrency(person.repaidByThem + person.repaidByMe)}</span>
+                      </div>
+                    </div>
+
+                    <div className="grid grid-cols-2 gap-3 mt-6">
+                      <button
+                        onClick={() => setSelectedLedgerPerson(selectedLedgerPerson === person.name ? null : person.name)}
+                        className="py-3 bg-zinc-50 dark:bg-white/5 hover:bg-zinc-100 dark:hover:bg-white/10 rounded-2xl text-[9px] font-bold text-zinc-500 dark:text-zinc-400 uppercase tracking-widest transition-all flex items-center justify-center gap-2"
+                      >
+                        {selectedLedgerPerson === person.name ? 'Hide History' : 'History'}
+                        <ChevronRight className={`w-3 h-3 transition-transform duration-300 ${selectedLedgerPerson === person.name ? 'rotate-90' : ''}`} />
+                      </button>
+                      
+                      <button
+                        onClick={() => handleDirectSettlement(person.name, person.net, person.net > 0 ? 'lent' : 'borrowed')}
+                        className={`py-3 rounded-2xl text-[9px] font-bold uppercase tracking-widest transition-all shadow-lg active:scale-95 ${
+                          person.net > 0 
+                            ? 'bg-emerald-600 text-white shadow-emerald-500/20 hover:bg-emerald-700' 
+                            : 'bg-amber-600 text-white shadow-amber-500/20 hover:bg-amber-700'
+                        }`}
+                      >
+                        {person.net > 0 ? 'Settle In' : 'Settle Out'}
+                      </button>
+                    </div>
+                  </div>
+
+                  <AnimatePresence>
+                    {selectedLedgerPerson === person.name && (
+                      <motion.div
+                        initial={{ height: 0, opacity: 0 }}
+                        animate={{ height: 'auto', opacity: 1 }}
+                        exit={{ height: 0, opacity: 0 }}
+                        className="bg-zinc-50/50 dark:bg-zinc-800/30 border-t border-zinc-100 dark:border-zinc-800"
+                      >
+                        <div className="p-4 space-y-3 max-h-[300px] overflow-y-auto custom-scrollbar">
+                          {person.history.map(item => (
+                            <div key={item.id} className="flex items-center justify-between p-3 bg-white dark:bg-zinc-900 rounded-xl border border-zinc-100 dark:border-zinc-800 shadow-sm transition-transform hover:scale-[1.02]">
+                              <div className="flex items-center gap-3">
+                                <div className={`w-8 h-8 rounded-lg flex items-center justify-center text-[10px] font-bold ${
+                                  item.type === 'lent' ? 'bg-emerald-50 text-emerald-600 dark:bg-emerald-500/10' :
+                                  item.type === 'borrowed' ? 'bg-amber-50 text-amber-600 dark:bg-amber-500/10' :
+                                  'bg-indigo-50 text-indigo-600 dark:bg-indigo-500/10'
+                                }`}>
+                                  {item.type === 'lent' ? 'L' : item.type === 'borrowed' ? 'B' : 'R'}
+                                </div>
+                                <div className="min-w-0">
+                                  <p className="text-xs font-bold text-zinc-900 dark:text-white truncate">{item.description}</p>
+                                  <p className="text-[10px] text-zinc-500 font-mono">{item.date.toDate().toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}</p>
+                                </div>
+                              </div>
+                              <p className={`text-xs font-bold font-mono ${
+                                item.type === 'lent' ? 'text-emerald-600' :
+                                item.type === 'borrowed' ? 'text-amber-600' :
+                                'text-indigo-600'
+                              }`}>
+                                {(item.type === 'borrowed' || (item.type === 'repayment' && item.paidBy !== user.uid)) ? '−' : '+'}₹{formatCurrency(item.amount)}
+                              </p>
+                            </div>
+                          ))}
+                        </div>
+                      </motion.div>
+                    )}
+                  </AnimatePresence>
+                </motion.div>
+              ))}
+            </div>
+          </motion.section>
+        )}
+      </AnimatePresence>
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 mb-12">
         {group.budgetType !== 'total' && (
@@ -1183,12 +1401,29 @@ export default function GroupView({ groupId, user, onBack, theme }: GroupViewPro
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-12">
         <div className="lg:col-span-2">
-          <div className="flex items-center justify-between mb-8">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-8">
             <h2 className="text-xl font-bold tracking-tight text-zinc-900 dark:text-white flex items-center gap-3 font-display">
               <Receipt className="w-6 h-6 text-zinc-400 dark:text-zinc-500" />
               Transaction History
             </h2>
-            <div className="text-xs font-bold text-zinc-500 uppercase tracking-widest">{expenses.length} Total</div>
+            <div className="relative w-full sm:w-64">
+              <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-zinc-400" />
+              <input
+                type="text"
+                value={expenseSearchTerm}
+                onChange={(e) => setExpenseSearchTerm(e.target.value)}
+                placeholder="Search transactions..."
+                className="w-full pl-10 pr-4 py-2.5 bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-2xl text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all dark:text-white"
+              />
+              {expenseSearchTerm && (
+                <button
+                  onClick={() => setExpenseSearchTerm('')}
+                  className="absolute right-3 top-1/2 -translate-y-1/2 p-1 hover:bg-zinc-100 dark:hover:bg-zinc-800 rounded-full text-zinc-400 transition-colors"
+                >
+                  <X className="w-3 h-3" />
+                </button>
+              )}
+            </div>
           </div>
           
           <div className="bg-white dark:bg-zinc-900 rounded-[40px] border border-zinc-200 dark:border-zinc-800 overflow-hidden shadow-xl shadow-zinc-200/50 dark:shadow-black/20">
@@ -1200,9 +1435,23 @@ export default function GroupView({ groupId, user, onBack, theme }: GroupViewPro
                 <h3 className="text-lg font-bold text-zinc-900 dark:text-white mb-2">No transactions yet</h3>
                 <p className="text-zinc-500 dark:text-zinc-400 max-w-xs mx-auto text-sm">Start tracking your shared expenses by adding your first transaction.</p>
               </div>
+            ) : filteredExpenses.length === 0 ? (
+              <div className="p-10 sm:p-20 text-center">
+                <div className="w-16 h-16 sm:w-20 sm:h-20 bg-zinc-50 dark:bg-zinc-800 rounded-full flex items-center justify-center mx-auto mb-6">
+                  <Search className="w-8 h-8 sm:w-10 sm:h-10 text-zinc-300 dark:text-zinc-600" />
+                </div>
+                <h3 className="text-lg font-bold text-zinc-900 dark:text-white mb-2">No matches found</h3>
+                <p className="text-zinc-500 dark:text-zinc-400 max-w-xs mx-auto text-sm">We couldn't find any transactions matching "{expenseSearchTerm}".</p>
+                <button 
+                  onClick={() => setExpenseSearchTerm('')}
+                  className="mt-6 text-sm font-bold text-indigo-600 dark:text-indigo-400 hover:underline"
+                >
+                  Clear search
+                </button>
+              </div>
             ) : (
               <div className="divide-y divide-zinc-100 dark:divide-zinc-800">
-                {expenses.map(expense => (
+                {filteredExpenses.map(expense => (
                   <div key={expense.id} className="p-4 sm:p-6 flex flex-col sm:flex-row sm:items-center justify-between group transition-all duration-200 gap-4 hover:bg-zinc-50 dark:hover:bg-zinc-800/50">
                     <div className="flex items-center gap-4 sm:gap-5 min-w-0">
                       <div className="w-12 h-12 sm:w-14 sm:h-14 bg-zinc-50 dark:bg-zinc-800 rounded-2xl flex flex-col items-center justify-center text-zinc-400 dark:text-zinc-500 border border-zinc-100 dark:border-zinc-700 group-hover:bg-white dark:group-hover:bg-zinc-800 transition-colors shrink-0">
@@ -1399,7 +1648,12 @@ export default function GroupView({ groupId, user, onBack, theme }: GroupViewPro
                     <label className="block text-[10px] font-bold text-zinc-400 uppercase tracking-[0.15em] mb-2">Transaction Type</label>
                     <select
                       value={transactionType}
-                      onChange={(e) => setTransactionType(e.target.value as TransactionType)}
+                      onChange={(e) => {
+                        const val = e.target.value as TransactionType;
+                        setTransactionType(val);
+                        if (val === 'lent') setIsPayorMe(true);
+                        if (val === 'borrowed') setIsPayorMe(false);
+                      }}
                       className="w-full px-5 py-4 bg-zinc-50 dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 rounded-2xl focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all font-medium appearance-none dark:text-white"
                     >
                       <option value="expense">Normal Expense</option>
@@ -1413,15 +1667,49 @@ export default function GroupView({ groupId, user, onBack, theme }: GroupViewPro
                       <label className="block text-[10px] font-bold text-zinc-400 uppercase tracking-[0.15em] mb-2">Person Name</label>
                       <input
                         type="text"
+                        list="people-list"
                         value={relatedParty}
                         onChange={(e) => setRelatedParty(e.target.value)}
                         className="w-full px-5 py-4 bg-zinc-50 dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 rounded-2xl focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all font-medium dark:text-white"
                         placeholder="Who?"
                         required
                       />
+                      <datalist id="people-list">
+                        {Array.from(new Set(expenses.map(e => e.relatedParty).filter(Boolean))).map(name => (
+                          <option key={name} value={name || ''} />
+                        ))}
+                      </datalist>
                     </div>
                   )}
                 </div>
+
+                {transactionType === 'repayment' && (
+                  <div className="flex bg-zinc-100 dark:bg-zinc-800 p-1 rounded-2xl mb-2 mx-1">
+                    <button
+                      type="button"
+                      onClick={() => setIsPayorMe(true)}
+                      className={`flex-1 py-3 px-4 rounded-xl text-[10px] uppercase tracking-wider font-bold transition-all ${
+                        isPayorMe 
+                          ? 'bg-white dark:bg-zinc-700 text-indigo-600 dark:text-white shadow-sm' 
+                          : 'text-zinc-500 hover:text-zinc-700 dark:hover:text-zinc-300'
+                      }`}
+                    >
+                      I paid back
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setIsPayorMe(false)}
+                      className={`flex-1 py-3 px-4 rounded-xl text-[10px] uppercase tracking-wider font-bold transition-all ${
+                        !isPayorMe 
+                          ? 'bg-white dark:bg-zinc-700 text-indigo-600 dark:text-white shadow-sm' 
+                          : 'text-zinc-500 hover:text-zinc-700 dark:hover:text-zinc-300'
+                      }`}
+                    >
+                      They paid back
+                    </button>
+                  </div>
+                )}
+
                 <div className="flex flex-col gap-4 px-2">
                   <div className="flex items-center gap-3">
                     <input
