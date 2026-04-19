@@ -611,11 +611,17 @@ export default function GroupView({ groupId, user, onBack, theme }: GroupViewPro
   const getPersonLedger = () => {
     const people = new Set<string>();
     expenses.forEach(e => {
-      if (e.relatedParty) people.add(e.relatedParty);
+      if (e.relatedParty) {
+        people.add(e.relatedParty);
+      } else if (e.type === 'lent' || e.type === 'borrowed' || e.type === 'repayment') {
+        people.add('Unspecified');
+      }
     });
 
     return Array.from(people).map(name => {
-      const personExpenses = expenses.filter(e => e.relatedParty === name);
+      const personExpenses = expenses.filter(e => 
+        e.relatedParty === name || (name === 'Unspecified' && !e.relatedParty && (e.type === 'lent' || e.type === 'borrowed' || e.type === 'repayment'))
+      );
       const lent = personExpenses.filter(e => e.type === 'lent').reduce((sum, e) => sum + e.amount, 0);
       const borrowed = personExpenses.filter(e => e.type === 'borrowed').reduce((sum, e) => sum + e.amount, 0);
       
@@ -655,10 +661,20 @@ export default function GroupView({ groupId, user, onBack, theme }: GroupViewPro
   });
 
   const handleOpenLedger = (mode: 'lent' | 'borrowed') => {
-    setLedgerViewMode(mode);
-    setTimeout(() => {
-      ledgerSectionRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
-    }, 100);
+    // If clicking same mode, close it. Otherwise open new mode.
+    if (ledgerViewMode === mode) {
+      setLedgerViewMode(null);
+    } else {
+      setLedgerViewMode(mode);
+      setTimeout(() => {
+        if (ledgerSectionRef.current) {
+          const yOffset = -20; // Some padding for the sticky header if any
+          const element = ledgerSectionRef.current;
+          const y = element.getBoundingClientRect().top + window.pageYOffset + yOffset;
+          window.scrollTo({ top: y, behavior: 'smooth' });
+        }
+      }, 300); // More time for mobile mount + animation
+    }
   };
 
   const handleDirectSettlement = (personName: string, amount: number, type: 'lent' | 'borrowed') => {
@@ -1122,19 +1138,19 @@ export default function GroupView({ groupId, user, onBack, theme }: GroupViewPro
         {ledgerViewMode && (
           <motion.section 
             ref={ledgerSectionRef}
-            initial={{ opacity: 0, height: 0 }}
-            animate={{ opacity: 1, height: 'auto' }}
-            exit={{ opacity: 0, height: 0 }}
-            className="mb-12 overflow-hidden"
+            initial={{ opacity: 0, y: 10 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: 10 }}
+            className="mb-12"
           >
-            <div className="flex items-center justify-between mb-8">
-              <h2 className="text-xl font-bold tracking-tight text-zinc-900 dark:text-white flex items-center gap-3 font-display">
-                <Users className="w-6 h-6 text-zinc-400 dark:text-zinc-500" />
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between mb-8 gap-4">
+              <h2 className="text-lg md:text-xl font-bold tracking-tight text-zinc-900 dark:text-white flex items-center gap-3 font-display">
+                <Users className="w-5 h-5 md:w-6 md:h-6 text-zinc-400 dark:text-zinc-500" />
                 Loans & Debts Ledger: <span className="text-indigo-600 dark:text-indigo-400 capitalize">{ledgerViewMode}</span>
               </h2>
               <button 
                 onClick={() => setLedgerViewMode(null)}
-                className="text-[10px] font-bold text-zinc-400 hover:text-indigo-600 uppercase tracking-widest transition-colors"
+                className="py-2 px-4 bg-zinc-100 dark:bg-zinc-800 rounded-xl text-[10px] font-bold text-zinc-500 hover:text-indigo-600 uppercase tracking-widest transition-colors w-fit"
               >
                 Close Ledger
               </button>
@@ -1146,8 +1162,19 @@ export default function GroupView({ groupId, user, onBack, theme }: GroupViewPro
                   if (ledgerViewMode === 'lent') return p.lent > 0;
                   if (ledgerViewMode === 'borrowed') return p.borrowed > 0;
                   return false;
-                })
-                .map(person => (
+                }).length === 0 ? (
+                  <div className="col-span-full p-12 bg-zinc-50 dark:bg-zinc-800/20 rounded-[32px] border border-dashed border-zinc-200 dark:border-zinc-800 text-center">
+                    <Users className="w-8 h-8 text-zinc-300 mx-auto mb-3" />
+                    <p className="text-xs font-bold text-zinc-500 uppercase tracking-widest">No individual records found in {ledgerViewMode}</p>
+                  </div>
+                ) : (
+                  personLedger
+                    .filter(p => {
+                      if (ledgerViewMode === 'lent') return p.lent > 0;
+                      if (ledgerViewMode === 'borrowed') return p.borrowed > 0;
+                      return false;
+                    })
+                    .map(person => (
                 <motion.div
                   key={person.name}
                   layout
@@ -1258,7 +1285,7 @@ export default function GroupView({ groupId, user, onBack, theme }: GroupViewPro
                     )}
                   </AnimatePresence>
                 </motion.div>
-              ))}
+              )))}
             </div>
           </motion.section>
         )}
