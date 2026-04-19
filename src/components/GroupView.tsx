@@ -1692,10 +1692,10 @@ export default function GroupView({ groupId, user, onBack, theme }: GroupViewPro
               initial={{ opacity: 0, scale: 0.95, y: 20 }}
               animate={{ opacity: 1, scale: 1, y: 0 }}
               exit={{ opacity: 0, scale: 0.95, y: 20 }}
-              className="relative w-full max-w-md bg-white dark:bg-zinc-900 rounded-[40px] shadow-2xl p-6 sm:p-10 outline-none"
+              className="relative w-full max-w-md bg-white dark:bg-zinc-900 rounded-[32px] sm:rounded-[40px] shadow-2xl p-5 sm:p-10 outline-none max-h-[92vh] overflow-y-auto custom-scrollbar"
             >
-              <div className="flex items-center justify-between mb-8">
-                <h3 id="add-expense-title" className="text-2xl font-bold tracking-tight text-zinc-900 dark:text-white font-display">
+              <div className="flex items-center justify-between mb-4 sm:mb-8">
+                <h3 id="add-expense-title" className="text-xl sm:text-2xl font-bold tracking-tight text-zinc-900 dark:text-white font-display">
                   {editingExpense ? 'Edit Expense' : 'Add Expense'}
                 </h3>
                 <button 
@@ -1710,9 +1710,9 @@ export default function GroupView({ groupId, user, onBack, theme }: GroupViewPro
                   <X className="w-5 h-5 text-zinc-500" />
                 </button>
               </div>
-              <form onSubmit={handleAddExpense} className="space-y-6">
+              <form onSubmit={handleAddExpense} className="space-y-3 sm:space-y-6">
                 <div>
-                  <label className="block text-[10px] font-bold text-zinc-400 uppercase tracking-[0.15em] mb-2">Amount</label>
+                  <label className="block text-[10px] font-bold text-zinc-400 uppercase tracking-[0.15em] mb-1.5">Amount</label>
                   <div className="relative">
                     <span className="absolute left-5 top-1/2 -translate-y-1/2 text-zinc-400 font-mono font-bold">₹</span>
                     <input
@@ -1720,7 +1720,7 @@ export default function GroupView({ groupId, user, onBack, theme }: GroupViewPro
                       step="0.01"
                       value={amount}
                       onChange={(e) => setAmount(e.target.value)}
-                      className="w-full pl-10 pr-5 py-4 bg-zinc-50 dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 rounded-2xl focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all font-mono font-bold text-lg dark:text-white"
+                      className="w-full pl-10 pr-5 py-3 sm:py-4 bg-zinc-50 dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 rounded-2xl focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all font-mono font-bold text-base sm:text-lg dark:text-white"
                       placeholder="0.00"
                       required
                       autoFocus
@@ -1728,41 +1728,41 @@ export default function GroupView({ groupId, user, onBack, theme }: GroupViewPro
                   </div>
                 </div>
                 <div>
-                  <label className="block text-[10px] font-bold text-zinc-400 uppercase tracking-[0.15em] mb-2">Description</label>
+                  <label className="block text-[10px] font-bold text-zinc-400 uppercase tracking-[0.15em] mb-1.5">Description</label>
                   <input
                     type="text"
                     value={description}
                     onChange={(e) => setDescription(e.target.value)}
-                    className="w-full px-5 py-4 bg-zinc-50 dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 rounded-2xl focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all font-medium dark:text-white"
+                    className="w-full px-5 py-3 sm:py-4 bg-zinc-50 dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 rounded-2xl focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all font-medium dark:text-white text-sm"
                     placeholder="What was it for?"
                     required
                   />
                 </div>
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
                   <div>
-                    <label className="block text-[10px] font-bold text-zinc-400 uppercase tracking-[0.15em] mb-2">Category</label>
+                    <label className="block text-[10px] font-bold text-zinc-400 uppercase tracking-[0.15em] mb-1.5">Category</label>
                     <select
                       value={category}
                       onChange={(e) => setCategory(e.target.value)}
-                      className="w-full px-5 py-4 bg-zinc-50 dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 rounded-2xl focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all font-medium appearance-none dark:text-white"
+                      className="w-full px-5 py-3 sm:py-4 bg-zinc-50 dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 rounded-2xl focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all font-medium appearance-none dark:text-white text-sm"
                     >
                       {CATEGORIES.map(c => <option key={c} value={c}>{c}</option>)}
                     </select>
                   </div>
                   <div>
-                    <label className="block text-[10px] font-bold text-zinc-400 uppercase tracking-[0.15em] mb-2">Date</label>
+                    <label className="block text-[10px] font-bold text-zinc-400 uppercase tracking-[0.15em] mb-1.5">Date</label>
                     <input
                       type="date"
                       value={date}
                       onChange={(e) => setDate(e.target.value)}
-                      className="w-full px-5 py-4 bg-zinc-50 dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 rounded-2xl focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all font-medium dark:text-white"
+                      className="w-full px-5 py-3 sm:py-4 bg-zinc-50 dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 rounded-2xl focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all font-medium dark:text-white text-sm"
                     />
                   </div>
                 </div>
 
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
                   <div>
-                    <label className="block text-[10px] font-bold text-zinc-400 uppercase tracking-[0.15em] mb-2">Transaction Type</label>
+                    <label className="block text-[10px] font-bold text-zinc-400 uppercase tracking-[0.15em] mb-1.5">Transaction Type</label>
                     <select
                       value={transactionType}
                       onChange={(e) => {
@@ -1771,7 +1771,7 @@ export default function GroupView({ groupId, user, onBack, theme }: GroupViewPro
                         if (val === 'lent') setIsPayorMe(true);
                         if (val === 'borrowed') setIsPayorMe(false);
                       }}
-                      className="w-full px-5 py-4 bg-zinc-50 dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 rounded-2xl focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all font-medium appearance-none dark:text-white"
+                      className="w-full px-5 py-3 sm:py-4 bg-zinc-50 dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 rounded-2xl focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all font-medium appearance-none dark:text-white text-sm"
                     >
                       <option value="expense">Normal Expense</option>
                       <option value="borrowed">Borrowed (I owe)</option>
@@ -1781,7 +1781,7 @@ export default function GroupView({ groupId, user, onBack, theme }: GroupViewPro
                   </div>
                   {transactionType !== 'expense' && (
                     <div className="relative">
-                      <label className="block text-[10px] font-bold text-zinc-400 uppercase tracking-[0.15em] mb-2">Person Name</label>
+                      <label className="block text-[10px] font-bold text-zinc-400 uppercase tracking-[0.15em] mb-1.5">Person Name</label>
                       <input
                         type="text"
                         value={relatedParty}
@@ -1790,8 +1790,8 @@ export default function GroupView({ groupId, user, onBack, theme }: GroupViewPro
                           setIsPersonDropdownOpen(true);
                         }}
                         onFocus={() => setIsPersonDropdownOpen(true)}
-                        className="w-full px-5 py-4 bg-zinc-50 dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 rounded-2xl focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all font-medium dark:text-white"
-                        placeholder="Type to search or select..."
+                        className="w-full px-5 py-3 sm:py-4 bg-zinc-50 dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 rounded-2xl focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all font-medium dark:text-white text-sm"
+                        placeholder="Type to search..."
                         required
                       />
                       
@@ -1847,14 +1847,13 @@ export default function GroupView({ groupId, user, onBack, theme }: GroupViewPro
                   )}
                 </div>
 
-                <div className="pt-2">
-                  <label className="block text-[10px] font-bold text-zinc-400 uppercase tracking-[0.15em] mb-3">Attachment (Bill/Receipt)</label>
+                <div className="pt-1">
+                  <label className="block text-[10px] font-bold text-zinc-400 uppercase tracking-[0.15em] mb-2">Attachment (Bill/Receipt)</label>
                   {!attachmentPreview ? (
-                    <label className="flex flex-col items-center justify-center w-full h-32 border-2 border-dashed border-zinc-200 dark:border-zinc-700 rounded-2xl hover:bg-zinc-50 dark:hover:bg-zinc-800/50 transition-all cursor-pointer group">
-                      <div className="flex flex-col items-center justify-center pt-5 pb-6">
-                        <Camera className="w-8 h-8 text-zinc-300 group-hover:text-indigo-500 transition-colors mb-2" />
-                        <p className="text-xs text-zinc-500 font-bold uppercase tracking-widest">Click to upload bill</p>
-                        <p className="text-[9px] text-zinc-400 mt-1">Images only (Max 5MB)</p>
+                    <label className="flex flex-col items-center justify-center w-full h-24 sm:h-32 border-2 border-dashed border-zinc-200 dark:border-zinc-700 rounded-2xl hover:bg-zinc-50 dark:hover:bg-zinc-800/50 transition-all cursor-pointer group">
+                      <div className="flex flex-col items-center justify-center pt-3 pb-4 sm:pt-5 sm:pb-6">
+                        <Camera className="w-6 h-6 sm:w-8 sm:h-8 text-zinc-300 group-hover:text-indigo-500 transition-colors mb-2" />
+                        <p className="text-[10px] sm:text-xs text-zinc-500 font-bold uppercase tracking-widest text-center px-4">Click to upload bill</p>
                       </div>
                       <input type="file" className="hidden" accept="image/*" onChange={handleFileChange} />
                     </label>
@@ -1920,16 +1919,16 @@ export default function GroupView({ groupId, user, onBack, theme }: GroupViewPro
                   </div>
                 )}
 
-                <div className="flex flex-col gap-4 px-2">
+                <div className="flex flex-col gap-3 px-2">
                   <div className="flex items-center gap-3">
                     <input
                       type="checkbox"
                       id="isRecurring"
                       checked={isRecurring}
                       onChange={(e) => setIsRecurring(e.target.checked)}
-                      className="w-5 h-5 rounded-lg border-zinc-300 dark:border-zinc-700 text-indigo-600 focus:ring-indigo-500 transition-all cursor-pointer"
+                      className="w-4 h-4 sm:w-5 sm:h-5 rounded-lg border-zinc-300 dark:border-zinc-700 text-indigo-600 focus:ring-indigo-500 transition-all cursor-pointer"
                     />
-                    <label htmlFor="isRecurring" className="text-sm font-bold text-zinc-600 dark:text-zinc-300 cursor-pointer select-none">
+                    <label htmlFor="isRecurring" className="text-xs sm:text-sm font-bold text-zinc-600 dark:text-zinc-300 cursor-pointer select-none">
                       Recurring Expense
                     </label>
                   </div>
@@ -2008,10 +2007,10 @@ export default function GroupView({ groupId, user, onBack, theme }: GroupViewPro
               initial={{ opacity: 0, scale: 0.95, y: 20 }}
               animate={{ opacity: 1, scale: 1, y: 0 }}
               exit={{ opacity: 0, scale: 0.95, y: 20 }}
-              className="relative w-full max-w-md bg-white dark:bg-zinc-900 rounded-[40px] shadow-2xl p-10 outline-none"
+              className="relative w-full max-w-md bg-white dark:bg-zinc-900 rounded-[32px] sm:rounded-[40px] shadow-2xl p-6 sm:p-10 outline-none max-h-[92vh] overflow-y-auto custom-scrollbar"
             >
               <div className="flex items-center justify-between mb-2">
-                <h3 id="add-member-title" className="text-2xl font-bold tracking-tight text-zinc-900 dark:text-white font-display">Invite Member</h3>
+                <h3 id="add-member-title" className="text-xl sm:text-2xl font-bold tracking-tight text-zinc-900 dark:text-white font-display">Invite Member</h3>
                 <button 
                   type="button"
                   onClick={() => setIsAddMemberOpen(false)} 
@@ -2021,22 +2020,22 @@ export default function GroupView({ groupId, user, onBack, theme }: GroupViewPro
                   <X className="w-5 h-5 text-zinc-500" />
                 </button>
               </div>
-              <p className="text-zinc-500 dark:text-zinc-400 text-sm mb-8">Enter the email address of the person you want to add.</p>
+              <p className="text-zinc-500 dark:text-zinc-400 text-xs sm:text-sm mb-6 sm:mb-8">Enter the email address of the person you want to add.</p>
               
               {inviteError && (
-                <div className="mb-6 p-4 bg-red-50 dark:bg-red-500/10 border border-red-100 dark:border-red-500/20 text-red-600 dark:text-red-400 text-xs font-bold rounded-2xl">
+                <div className="mb-4 p-4 bg-red-50 dark:bg-red-500/10 border border-red-100 dark:border-red-500/20 text-red-600 dark:text-red-400 text-[10px] sm:text-xs font-bold rounded-2xl">
                   {inviteError}
                 </div>
               )}
 
               {inviteSuccess && (
-                <div className="mb-6 p-4 bg-emerald-50 dark:bg-emerald-500/10 border border-emerald-100 dark:border-emerald-500/20 text-emerald-600 dark:text-emerald-400 text-xs font-bold rounded-2xl flex items-center gap-2">
+                <div className="mb-4 p-4 bg-emerald-50 dark:bg-emerald-500/10 border border-emerald-100 dark:border-emerald-500/20 text-emerald-600 dark:text-emerald-400 text-[10px] sm:text-xs font-bold rounded-2xl flex items-center gap-2">
                   <Sparkles className="w-4 h-4" />
                   Member added successfully!
                 </div>
               )}
 
-              <form onSubmit={handleAddMember} className="space-y-6">
+              <form onSubmit={handleAddMember} className="space-y-4 sm:space-y-6">
                 <div>
                   <label className="block text-[10px] font-bold text-zinc-400 uppercase tracking-[0.15em] mb-2">Email Address</label>
                   <input
@@ -2046,7 +2045,7 @@ export default function GroupView({ groupId, user, onBack, theme }: GroupViewPro
                       setNewMemberEmail(e.target.value);
                       setInviteError(null);
                     }}
-                    className="w-full px-5 py-4 bg-zinc-50 dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 rounded-2xl focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all font-medium dark:text-white"
+                    className="w-full px-5 py-3 sm:py-4 bg-zinc-50 dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 rounded-2xl focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all font-medium dark:text-white text-sm"
                     placeholder="friend@example.com"
                     required
                     disabled={inviteLoading || inviteSuccess}
@@ -2056,7 +2055,7 @@ export default function GroupView({ groupId, user, onBack, theme }: GroupViewPro
                 <button
                   type="submit"
                   disabled={inviteLoading || inviteSuccess}
-                  className="w-full py-4 bg-zinc-900 dark:bg-indigo-600 text-white rounded-2xl font-bold hover:bg-zinc-800 dark:hover:bg-indigo-700 transition-all mt-4 flex items-center justify-center gap-2 disabled:opacity-50 shadow-lg shadow-zinc-200 dark:shadow-indigo-500/20 active:scale-95"
+                  className="w-full py-4 bg-zinc-900 dark:bg-indigo-600 text-white rounded-2xl font-bold hover:bg-zinc-800 dark:hover:bg-indigo-700 transition-all mt-2 sm:mt-4 flex items-center justify-center gap-2 disabled:opacity-50 shadow-lg shadow-zinc-200 dark:shadow-indigo-500/20 active:scale-95"
                 >
                   {inviteLoading ? (
                     <>
@@ -2091,10 +2090,10 @@ export default function GroupView({ groupId, user, onBack, theme }: GroupViewPro
               initial={{ opacity: 0, scale: 0.95, y: 20 }}
               animate={{ opacity: 1, scale: 1, y: 0 }}
               exit={{ opacity: 0, scale: 0.95, y: 20 }}
-              className="relative w-full max-w-md bg-white dark:bg-zinc-900 rounded-[40px] shadow-2xl p-10 max-h-[90vh] overflow-y-auto outline-none"
+              className="relative w-full max-w-md bg-white dark:bg-zinc-900 rounded-[32px] sm:rounded-[40px] shadow-2xl p-6 sm:p-10 outline-none max-h-[92vh] overflow-y-auto custom-scrollbar"
             >
-              <div className="flex items-center justify-between mb-8">
-                <h3 id="settings-title" className="text-2xl font-bold tracking-tight text-zinc-900 dark:text-white font-display">Group Settings</h3>
+              <div className="flex items-center justify-between mb-6 sm:mb-8">
+                <h3 id="settings-title" className="text-xl sm:text-2xl font-bold tracking-tight text-zinc-900 dark:text-white font-display">Group Settings</h3>
                 <button 
                   type="button"
                   onClick={() => setIsSettingsOpen(false)} 
