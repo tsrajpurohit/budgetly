@@ -1,10 +1,12 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import { 
-  ArrowLeft, 
+  ArrowLeft,
   Plus, 
   Users, 
   Receipt, 
+  ArrowUpRight,
+  ArrowDownLeft,
   MoreVertical, 
   Trash2, 
   UserPlus,
@@ -54,7 +56,7 @@ import {
   arrayUnion
 } from 'firebase/firestore';
 import { User } from 'firebase/auth';
-import { Group, Expense, GroupMember, CATEGORIES, BudgetType, RecurrenceFrequency } from '../types';
+import { Group, Expense, GroupMember, CATEGORIES, BudgetType, RecurrenceFrequency, TransactionType } from '../types';
 import { formatCurrency } from '../utils/format';
 import { handleFirestoreError, OperationType } from '../utils/errorHandling';
 
@@ -82,6 +84,8 @@ export default function GroupView({ groupId, user, onBack, theme }: GroupViewPro
   const [isRecurring, setIsRecurring] = useState(false);
   const [frequency, setFrequency] = useState<RecurrenceFrequency>('monthly');
   const [recurrenceEndDate, setRecurrenceEndDate] = useState('');
+  const [transactionType, setTransactionType] = useState<TransactionType>('expense');
+  const [relatedParty, setRelatedParty] = useState('');
   const [newMemberEmail, setNewMemberEmail] = useState('');
   
   // Settings states
@@ -206,6 +210,8 @@ export default function GroupView({ groupId, user, onBack, theme }: GroupViewPro
       setIsRecurring(editingExpense.isRecurring || false);
       setFrequency(editingExpense.frequency || 'monthly');
       setRecurrenceEndDate(editingExpense.endDate ? editingExpense.endDate.toDate().toISOString().split('T')[0] : '');
+      setTransactionType(editingExpense.type || 'expense');
+      setRelatedParty(editingExpense.relatedParty || '');
       setIsAddExpenseOpen(true);
     } else {
       setAmount('');
@@ -215,6 +221,8 @@ export default function GroupView({ groupId, user, onBack, theme }: GroupViewPro
       setIsRecurring(false);
       setFrequency('monthly');
       setRecurrenceEndDate('');
+      setTransactionType('expense');
+      setRelatedParty('');
     }
   }, [editingExpense]);
 
@@ -326,7 +334,9 @@ export default function GroupView({ groupId, user, onBack, theme }: GroupViewPro
         splitType: 'equal' as const,
         isRecurring,
         frequency: isRecurring ? frequency : null,
-        endDate: isRecurring && recurrenceEndDate ? Timestamp.fromDate(new Date(recurrenceEndDate)) : null
+        endDate: isRecurring && recurrenceEndDate ? Timestamp.fromDate(new Date(recurrenceEndDate)) : null,
+        type: transactionType,
+        relatedParty: transactionType !== 'expense' ? relatedParty.trim() : null
       };
 
       if (editingExpense) {
@@ -461,7 +471,8 @@ export default function GroupView({ groupId, user, onBack, theme }: GroupViewPro
   };
 
   const currentPeriodExpenses = expenses.filter(e => 
-    isDateInCurrentPeriod(e.date.toDate(), group?.budgetType || 'total')
+    isDateInCurrentPeriod(e.date.toDate(), group?.budgetType || 'total') && 
+    (!e.type || e.type === 'expense')
   );
 
   const totalSpent = currentPeriodExpenses.reduce((sum, e) => sum + e.amount, 0);
@@ -472,6 +483,35 @@ export default function GroupView({ groupId, user, onBack, theme }: GroupViewPro
   // Budget calculation
   const currentBudgetSpent = totalSpent;
 
+  // Loan and Debt calculations
+  const lentActions = expenses.filter(e => e.type === 'lent' && e.paidBy === user.uid);
+  const borrowedActions = expenses.filter(e => e.type === 'borrowed' && e.paidBy !== user.uid); // This assumes the app can track others paying. But for now let's assume simple self reports.
+  
+  // Simplified for self-reporting:
+  // Lent: I gave money out.
+  // Borrowed: I took money in.
+  // Repayment (Out): I paid back what I borrowed.
+  // Repayment (In): They paid back what I lent.
+
+  const totalLent = expenses
+    .filter(e => e.type === 'lent')
+    .reduce((sum, e) => sum + e.amount, 0);
+  
+  const totalBorrowed = expenses
+    .filter(e => e.type === 'borrowed')
+    .reduce((sum, e) => sum + e.amount, 0);
+
+  const totalRepaymentsIn = expenses
+    .filter(e => e.type === 'repayment' && e.paidBy !== user.uid)
+    .reduce((sum, e) => sum + e.amount, 0);
+
+  const totalRepaymentsOut = expenses
+    .filter(e => e.type === 'repayment' && e.paidBy === user.uid)
+    .reduce((sum, e) => sum + e.amount, 0);
+
+  const netLent = totalLent - totalRepaymentsIn;
+  const netBorrowed = totalBorrowed - totalRepaymentsOut;
+
   // Chart Data Preparation
   const getLineChartData = () => {
     if (!group || group.budgetType === 'total') return [];
@@ -481,7 +521,6 @@ export default function GroupView({ groupId, user, onBack, theme }: GroupViewPro
     const data = [];
     
     if (group.budgetType === 'weekly') {
-      // Show 52 weeks of the year
       const firstDayOfYear = new Date(currentYear, 0, 1);
       const startOfFirstWeek = new Date(firstDayOfYear);
       startOfFirstWeek.setDate(firstDayOfYear.getDate() - firstDayOfYear.getDay());
@@ -490,13 +529,16 @@ export default function GroupView({ groupId, user, onBack, theme }: GroupViewPro
       for (let i = 0; i < 52; i++) {
         const weekStart = new Date(startOfFirstWeek);
         weekStart.setDate(startOfFirstWeek.getDate() + (i * 7));
+        
+        if (weekStart > now) break;
+
         const weekEnd = new Date(weekStart);
         weekEnd.setDate(weekStart.getDate() + 7);
 
         const weekSpent = expenses
           .filter(e => {
             const ed = e.date.toDate();
-            return ed >= weekStart && ed < weekEnd && ed.getFullYear() === currentYear;
+            return ed >= weekStart && ed < weekEnd && ed.getFullYear() === currentYear && (!e.type || e.type === 'expense');
           })
           .reduce((sum, e) => sum + e.amount, 0);
         
@@ -508,10 +550,12 @@ export default function GroupView({ groupId, user, onBack, theme }: GroupViewPro
     } else if (group.budgetType === 'monthly') {
       const monthNames = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
       for (let i = 0; i < 12; i++) {
+        if (i > now.getMonth()) break;
+        
         const monthSpent = expenses
           .filter(e => {
             const ed = e.date.toDate();
-            return ed.getMonth() === i && ed.getFullYear() === currentYear;
+            return ed.getMonth() === i && ed.getFullYear() === currentYear && (!e.type || e.type === 'expense');
           })
           .reduce((sum, e) => sum + e.amount, 0);
         data.push({ name: monthNames[i], amount: monthSpent });
@@ -662,7 +706,10 @@ export default function GroupView({ groupId, user, onBack, theme }: GroupViewPro
         const amount = expenses
           .filter(e => {
             const ed = e.date.toDate();
-            return ed.getMonth() === m.month && ed.getFullYear() === m.year && e.category === category;
+            return ed.getMonth() === m.month && 
+                   ed.getFullYear() === m.year && 
+                   e.category === category &&
+                   (!e.type || e.type === 'expense');
           })
           .reduce((sum, e) => sum + e.amount, 0);
         return { month: m.label, amount };
@@ -680,16 +727,22 @@ export default function GroupView({ groupId, user, onBack, theme }: GroupViewPro
   const getDailyBreakdownData = () => {
     if (!selectedMonth) return [];
     
+    const now = new Date();
+    const isCurrentMonth = selectedMonth.month === now.getMonth() && selectedMonth.year === now.getFullYear();
+    
     const daysInMonth = new Date(selectedMonth.year, selectedMonth.month + 1, 0).getDate();
+    const limitDay = isCurrentMonth ? now.getDate() : daysInMonth;
+    
     const data = [];
     
-    for (let i = 1; i <= daysInMonth; i++) {
+    for (let i = 1; i <= limitDay; i++) {
       const dayAmount = expenses
         .filter(e => {
           const ed = e.date.toDate();
           return ed.getDate() === i && 
                  ed.getMonth() === selectedMonth.month && 
-                 ed.getFullYear() === selectedMonth.year;
+                 ed.getFullYear() === selectedMonth.year &&
+                 (!e.type || e.type === 'expense');
         })
         .reduce((sum, e) => sum + e.amount, 0);
       
@@ -842,6 +895,66 @@ export default function GroupView({ groupId, user, onBack, theme }: GroupViewPro
             </p>
           </div>
         </button>
+      </div>
+
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-6 mb-12">
+        <div className="bg-emerald-50/50 dark:bg-emerald-500/5 p-6 rounded-[32px] border border-emerald-100 dark:border-emerald-500/10 shadow-lg shadow-emerald-500/5 transition-all hover:bg-emerald-50 dark:hover:bg-emerald-500/10 group">
+          <div className="flex items-center justify-between mb-4">
+            <div className="p-2 bg-white dark:bg-zinc-900 rounded-xl shadow-sm">
+              <ArrowUpRight className="w-4 h-4 text-emerald-600 dark:text-emerald-400" />
+            </div>
+            <span className="text-[10px] font-bold text-emerald-600 dark:text-emerald-400 uppercase tracking-[0.2em]">Total Lent</span>
+          </div>
+          <p className="text-3xl font-bold text-zinc-900 dark:text-white font-display mb-1">₹{formatCurrency(totalLent)}</p>
+          <div className="flex items-center justify-between mt-4 text-[10px] font-bold uppercase overflow-hidden">
+            <div className="flex flex-col gap-1">
+              <span className="text-zinc-500">Back: ₹{formatCurrency(totalRepaymentsIn)}</span>
+              <span className="text-emerald-600">Pending: ₹{formatCurrency(netLent)}</span>
+            </div>
+            <div className="h-10 w-1 bg-zinc-200 dark:bg-zinc-800 rounded-full mx-4" />
+            <div className="flex-1">
+              <div className="flex justify-between mb-1">
+                <span className="text-zinc-500">Recovery</span>
+                <span className="text-emerald-600 font-mono">{totalLent > 0 ? ((totalRepaymentsIn / totalLent) * 100).toFixed(0) : 0}%</span>
+              </div>
+              <div className="w-full bg-zinc-200 dark:bg-white/10 h-1.5 rounded-full overflow-hidden">
+                <div 
+                  className="bg-emerald-500 h-full rounded-full transition-all duration-1000"
+                  style={{ width: `${totalLent > 0 ? Math.min(100, (totalRepaymentsIn / totalLent) * 100) : 0}%` }}
+                />
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div className="bg-amber-50/50 dark:bg-amber-500/5 p-6 rounded-[32px] border border-amber-100 dark:border-amber-500/10 shadow-lg shadow-amber-500/5 transition-all hover:bg-amber-50 dark:hover:bg-amber-500/10 group">
+          <div className="flex items-center justify-between mb-4">
+            <div className="p-2 bg-white dark:bg-zinc-900 rounded-xl shadow-sm">
+              <ArrowDownLeft className="w-4 h-4 text-amber-600 dark:text-amber-400" />
+            </div>
+            <span className="text-[10px] font-bold text-amber-600 dark:text-amber-400 uppercase tracking-[0.2em]">Total Borrowed</span>
+          </div>
+          <p className="text-3xl font-bold text-zinc-900 dark:text-white font-display mb-1">₹{formatCurrency(totalBorrowed)}</p>
+          <div className="flex items-center justify-between mt-4 text-[10px] font-bold uppercase overflow-hidden">
+            <div className="flex flex-col gap-1">
+              <span className="text-zinc-500">Paid: ₹{formatCurrency(totalRepaymentsOut)}</span>
+              <span className="text-amber-600">Owed: ₹{formatCurrency(netBorrowed)}</span>
+            </div>
+            <div className="h-10 w-1 bg-zinc-200 dark:bg-zinc-800 rounded-full mx-4" />
+            <div className="flex-1">
+              <div className="flex justify-between mb-1">
+                <span className="text-zinc-500">Settled</span>
+                <span className="text-amber-600 font-mono">{totalBorrowed > 0 ? ((totalRepaymentsOut / totalBorrowed) * 100).toFixed(0) : 0}%</span>
+              </div>
+              <div className="w-full bg-zinc-200 dark:bg-white/10 h-1.5 rounded-full overflow-hidden">
+                <div 
+                  className="bg-amber-500 h-full rounded-full transition-all duration-1000"
+                  style={{ width: `${totalBorrowed > 0 ? Math.min(100, (totalRepaymentsOut / totalBorrowed) * 100) : 0}%` }}
+                />
+              </div>
+            </div>
+          </div>
+        </div>
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 mb-12">
@@ -1100,6 +1213,15 @@ export default function GroupView({ groupId, user, onBack, theme }: GroupViewPro
                         <p className="font-bold text-zinc-900 dark:text-white group-hover:text-indigo-600 dark:group-hover:text-indigo-400 transition-colors truncate">{expense.description}</p>
                         <div className="flex flex-wrap items-center gap-2 mt-1">
                           <span className="px-2 py-0.5 bg-zinc-100 dark:bg-zinc-800 rounded-full text-[9px] sm:text-[10px] font-bold text-zinc-500 dark:text-zinc-400 uppercase tracking-wider border border-zinc-200 dark:border-zinc-700 shrink-0">{expense.category}</span>
+                          {expense.type && expense.type !== 'expense' && (
+                            <span className={`px-2 py-0.5 rounded-full text-[9px] sm:text-[10px] font-bold uppercase tracking-wider border flex items-center gap-1 shrink-0 ${
+                              expense.type === 'borrowed' ? 'bg-amber-50 dark:bg-amber-500/10 text-amber-600 dark:text-amber-400 border-amber-100 dark:border-amber-500/20' :
+                              expense.type === 'lent' ? 'bg-emerald-50 dark:bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border-emerald-100 dark:border-emerald-500/20' :
+                              'bg-indigo-50 dark:bg-indigo-500/10 text-indigo-600 dark:text-indigo-400 border-indigo-100 dark:border-indigo-500/20'
+                            }`}>
+                              {expense.type} {expense.relatedParty ? `• ${expense.relatedParty}` : ''}
+                            </span>
+                          )}
                           {expense.isRecurring && (
                             <span className="px-2 py-0.5 bg-indigo-50 dark:bg-indigo-500/10 rounded-full text-[9px] sm:text-[10px] font-bold text-indigo-600 dark:text-indigo-400 uppercase tracking-wider border border-indigo-100 dark:border-indigo-500/20 flex items-center gap-1 shrink-0">
                               <Calendar className="w-2.5 h-2.5" />
@@ -1270,6 +1392,35 @@ export default function GroupView({ groupId, user, onBack, theme }: GroupViewPro
                       className="w-full px-5 py-4 bg-zinc-50 dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 rounded-2xl focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all font-medium dark:text-white"
                     />
                   </div>
+                </div>
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-[10px] font-bold text-zinc-400 uppercase tracking-[0.15em] mb-2">Transaction Type</label>
+                    <select
+                      value={transactionType}
+                      onChange={(e) => setTransactionType(e.target.value as TransactionType)}
+                      className="w-full px-5 py-4 bg-zinc-50 dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 rounded-2xl focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all font-medium appearance-none dark:text-white"
+                    >
+                      <option value="expense">Normal Expense</option>
+                      <option value="borrowed">Borrowed (I owe)</option>
+                      <option value="lent">Lent (They owe me)</option>
+                      <option value="repayment">Repayment (Settling)</option>
+                    </select>
+                  </div>
+                  {transactionType !== 'expense' && (
+                    <div>
+                      <label className="block text-[10px] font-bold text-zinc-400 uppercase tracking-[0.15em] mb-2">Person Name</label>
+                      <input
+                        type="text"
+                        value={relatedParty}
+                        onChange={(e) => setRelatedParty(e.target.value)}
+                        className="w-full px-5 py-4 bg-zinc-50 dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 rounded-2xl focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all font-medium dark:text-white"
+                        placeholder="Who?"
+                        required
+                      />
+                    </div>
+                  )}
                 </div>
                 <div className="flex flex-col gap-4 px-2">
                   <div className="flex items-center gap-3">
