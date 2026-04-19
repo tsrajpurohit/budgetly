@@ -32,7 +32,7 @@
     },
     "Expense": {
       "title": "Expense",
-      "description": "An expense record within a group",
+      "description": "An expense or loan record within a group",
       "type": "object",
       "properties": {
         "id": { "type": "string" },
@@ -44,7 +44,11 @@
         "createdAt": { "type": "string", "format": "date-time" },
         "splitType": { "type": "string", "enum": ["equal", "percentage", "exact"] },
         "isRecurring": { "type": "boolean" },
-        "recurringTemplateId": { "type": "string" }
+        "frequency": { "type": "string", "enum": ["daily", "weekly", "monthly", "yearly"] },
+        "endDate": { "type": "string", "format": "date-time" },
+        "recurringTemplateId": { "type": "string" },
+        "type": { "type": "string", "enum": ["expense", "borrowed", "lent", "repayment"] },
+        "relatedParty": { "type": "string" }
       },
       "required": ["amount", "description", "paidBy", "date", "category"]
     },
