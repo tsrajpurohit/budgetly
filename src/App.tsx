@@ -57,6 +57,7 @@ export default function App() {
   const [selectedGroupId, setSelectedGroupId] = useState<string | null>(null);
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
+  const [isUIVisible, setIsUIVisible] = useState(true);
   const [showMobileInstructions, setShowMobileInstructions] = useState(false);
   const [theme, setTheme] = useState<'light' | 'dark'>(() => {
     if (typeof window !== 'undefined') {
@@ -368,9 +369,18 @@ export default function App() {
       </aside>
 
       {/* Main Content */}
-      <main className="flex-1 overflow-y-auto relative pb-24 lg:pb-0">
+      <main 
+        className="flex-1 overflow-y-auto relative pb-24 lg:pb-0"
+        onClick={(e) => {
+          // Only toggle if we're not clicking a button or interactable element
+          const target = e.target as HTMLElement;
+          if (!target.closest('button') && !target.closest('a') && !target.closest('input') && !target.closest('select')) {
+            setIsUIVisible(!isUIVisible);
+          }
+        }}
+      >
         {/* Mobile Header */}
-        <div className="lg:hidden flex items-center justify-between p-4 bg-white/80 dark:bg-zinc-950/80 backdrop-blur-xl border-b border-zinc-200 dark:border-white/5 sticky top-0 z-30">
+        <div className={`lg:hidden flex items-center justify-between p-4 bg-white/80 dark:bg-zinc-950/80 backdrop-blur-xl border-b border-zinc-200 dark:border-white/5 sticky top-0 z-30 transition-transform duration-300 ${isUIVisible ? 'translate-y-0' : '-translate-y-full'}`}>
           <div className="flex items-center gap-2">
             <div className="w-8 h-8 bg-gradient-to-br from-indigo-500 to-fuchsia-500 rounded-lg flex items-center justify-center shadow-lg shadow-indigo-500/20">
               <Wallet className="w-5 h-5 text-white" />
@@ -433,7 +443,7 @@ export default function App() {
       </main>
 
       {/* Mobile Bottom Navigation */}
-      <nav className="lg:hidden fixed bottom-0 left-0 right-0 bg-white/80 dark:bg-zinc-950/80 backdrop-blur-xl border-t border-zinc-200 dark:border-white/5 px-6 py-3 flex items-center justify-around z-40 pb-safe">
+      <nav className={`lg:hidden fixed bottom-0 left-0 right-0 bg-white/80 dark:bg-zinc-950/80 backdrop-blur-xl border-t border-zinc-200 dark:border-white/5 px-6 py-3 flex items-center justify-around z-40 pb-safe transition-transform duration-300 ${isUIVisible ? 'translate-y-0' : 'translate-y-full'}`}>
         <button 
           onClick={() => setSelectedGroupId(null)}
           className={`flex flex-col items-center gap-1 transition-colors ${!selectedGroupId ? 'text-indigo-600 dark:text-indigo-400' : 'text-zinc-400'}`}
