@@ -80,7 +80,7 @@ export default function Dashboard({ user, groups, onSelectGroup, theme }: Dashbo
       setEditCategory(editingExpense.category);
       setEditDate(editingExpense.date.toDate().toISOString().split('T')[0]);
       setEditType(editingExpense.type || 'expense');
-      setEditRelatedParty(editingExpense.relatedParty || '');
+      setEditRelatedParty(editingExpense.relatedParty || (editingExpense.paidBy.startsWith('external_person_') ? editingExpense.paidBy.replace('external_person_', '') : ''));
     }
   }, [editingExpense]);
 
@@ -109,7 +109,8 @@ export default function Dashboard({ user, groups, onSelectGroup, theme }: Dashbo
         category: editCategory,
         date: Timestamp.fromDate(new Date(editDate)),
         type: editType,
-        relatedParty: editType !== 'expense' ? editRelatedParty.trim() : null
+        relatedParty: editType !== 'expense' ? editRelatedParty.trim() : null,
+        paidBy: editType === 'borrowed' ? 'external_person_' + editRelatedParty.trim() : (editType === 'lent' ? user.uid : editingExpense.paidBy)
       });
       setEditingExpense(null);
     } catch (error) {
