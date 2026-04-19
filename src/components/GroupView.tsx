@@ -855,8 +855,8 @@ export default function GroupView({ groupId, user, onBack, theme }: GroupViewPro
               <span className="text-[10px] font-bold uppercase tracking-widest">{getPeriodLabel()}</span>
             </div>
           </div>
-          <h1 className="text-4xl font-bold tracking-tight text-zinc-900 dark:text-white mb-3 font-display">{group.name}</h1>
-          <p className="text-zinc-600 dark:text-zinc-300 max-w-2xl leading-relaxed font-medium">{group.description || 'No description provided.'}</p>
+          <h1 className="text-2xl md:text-3xl font-bold tracking-tighter text-zinc-900 dark:text-white mb-2 font-display">{group.name}</h1>
+          <p className="text-zinc-600 dark:text-zinc-300 max-w-2xl leading-relaxed font-medium text-sm">{group.description || 'No description provided.'}</p>
         </div>
 
         <div className="flex flex-wrap items-stretch gap-2 sm:gap-3 w-full md:w-auto">
@@ -900,67 +900,64 @@ export default function GroupView({ groupId, user, onBack, theme }: GroupViewPro
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6 md:gap-4 lg:gap-6 mb-12">
         <button 
           onClick={() => setSelectedStatDetails({ title: 'Total Group Spend', amount: totalSpent })}
-          className="text-left w-full bg-white dark:bg-zinc-900 p-6 md:p-5 lg:p-8 rounded-[32px] border border-zinc-200 dark:border-zinc-800 shadow-xl shadow-zinc-200/50 dark:shadow-zinc-950/20 relative overflow-hidden group hover:scale-[1.02] active:scale-95 transition-all cursor-pointer"
+          className="text-left w-full bg-white dark:bg-zinc-900 p-5 lg:p-6 rounded-[24px] border border-zinc-200 dark:border-zinc-800 shadow-xl shadow-zinc-200/40 dark:shadow-zinc-950/20 relative overflow-hidden group hover:scale-[1.01] active:scale-95 transition-all cursor-pointer"
         >
-          <div className="absolute top-0 right-0 w-32 h-32 bg-zinc-100 dark:bg-white/5 rounded-full -mr-16 -mt-16 transition-transform group-hover:scale-110" />
+          <div className="absolute top-0 right-0 w-24 h-24 bg-zinc-100 dark:bg-white/5 rounded-full -mr-12 -mt-12 transition-transform group-hover:scale-110" />
           <div className="relative">
-            <p className="text-[10px] font-bold text-zinc-500 uppercase tracking-[0.2em] mb-4 font-display">Total Group Spend</p>
+            <p className="text-[9px] font-bold text-zinc-500 uppercase tracking-[0.2em] mb-3 font-display">Total Group Spend</p>
             <p 
-              className="text-4xl md:text-2xl lg:text-3xl xl:text-4xl font-bold text-zinc-900 dark:text-white font-display tracking-tight truncate"
+              className="text-2xl md:text-xl lg:text-2xl xl:text-3xl font-bold text-zinc-900 dark:text-white font-display tracking-tight truncate"
               title={`₹${formatCurrency(totalSpent)}`}
             >
               ₹{formatCurrency(totalSpent)}
             </p>
             {group.maxBudget && (
-              <div className="mt-6">
-                <div className="flex justify-between text-[10px] font-bold uppercase mb-2 font-display">
-                  <span className="text-zinc-500">Budget ({group.budgetType})</span>
+              <div className="mt-4">
+                <div className="flex justify-between text-[9px] font-bold uppercase mb-1.5 font-display">
+                  <span className="text-zinc-500">Budget</span>
                   <span className={currentBudgetSpent > group.maxBudget ? 'text-red-600 dark:text-red-400' : 'text-indigo-600 dark:text-indigo-400'}>
                     {((currentBudgetSpent / group.maxBudget) * 100).toFixed(0)}%
                   </span>
                 </div>
-                <div className="h-2 bg-zinc-100 dark:bg-white/10 rounded-full overflow-hidden">
+                <div className="h-1.5 bg-zinc-100 dark:bg-white/10 rounded-full overflow-hidden">
                   <div 
                     className={`h-full transition-all duration-700 ease-out ${currentBudgetSpent > group.maxBudget ? 'bg-red-500' : 'bg-indigo-500'}`}
                     style={{ width: `${Math.min(100, (currentBudgetSpent / group.maxBudget) * 100)}%` }}
                   />
                 </div>
-                <p className="text-[10px] text-zinc-500 mt-2 font-medium">
-                  ₹{formatCurrency(currentBudgetSpent)} of ₹{formatCurrency(group.maxBudget)}
-                </p>
               </div>
             )}
           </div>
         </button>
         <button 
           onClick={() => setSelectedStatDetails({ title: 'Your Share', amount: perPerson, subtitle: `${totalSpent > 0 ? ((userSpent / totalSpent) * 100).toFixed(0) : 0}% of total paid by you` })}
-          className="text-left w-full bg-white dark:bg-zinc-900 p-6 md:p-5 lg:p-8 rounded-[32px] border border-zinc-200 dark:border-zinc-800 shadow-xl shadow-zinc-200/50 dark:shadow-black/20 relative overflow-hidden group hover:scale-[1.02] active:scale-95 transition-all cursor-pointer"
+          className="text-left w-full bg-white dark:bg-zinc-900 p-5 lg:p-6 rounded-[24px] border border-zinc-200 dark:border-zinc-800 shadow-xl shadow-zinc-200/40 dark:shadow-black/20 relative overflow-hidden group hover:scale-[1.01] active:scale-95 transition-all cursor-pointer"
         >
-          <div className="absolute top-0 right-0 w-32 h-32 bg-zinc-100 dark:bg-white/5 rounded-full -mr-16 -mt-16 transition-transform group-hover:scale-110" />
+          <div className="absolute top-0 right-0 w-24 h-24 bg-zinc-100 dark:bg-white/5 rounded-full -mr-12 -mt-12 transition-transform group-hover:scale-110" />
           <div className="relative">
-            <p className="text-[10px] font-bold text-zinc-500 uppercase tracking-[0.2em] mb-4 font-display">Your Share</p>
+            <p className="text-[9px] font-bold text-zinc-500 uppercase tracking-[0.2em] mb-3 font-display">Your Share</p>
             <p 
-              className="text-4xl md:text-2xl lg:text-3xl xl:text-4xl font-bold text-zinc-900 dark:text-white font-display tracking-tight truncate"
+              className="text-2xl md:text-xl lg:text-2xl xl:text-3xl font-bold text-zinc-900 dark:text-white font-display tracking-tight truncate"
               title={`₹${formatCurrency(perPerson)}`}
             >
               ₹{formatCurrency(perPerson)}
             </p>
-            <p className="text-xs font-medium text-zinc-500 mt-4">
+            <p className="text-[10px] font-medium text-zinc-500 mt-3">
               {totalSpent > 0 ? ((userSpent / totalSpent) * 100).toFixed(0) : 0}% of total paid by you
             </p>
           </div>
         </button>
         <button 
           onClick={() => setSelectedStatDetails({ title: balance >= 0 ? 'You are owed' : 'You owe', amount: Math.abs(balance) })}
-          className="text-left w-full bg-white dark:bg-zinc-900 p-6 md:p-5 lg:p-8 rounded-[32px] border border-zinc-200 dark:border-zinc-800 shadow-xl shadow-zinc-200/50 dark:shadow-black/20 relative overflow-hidden group hover:scale-[1.02] active:scale-95 transition-all duration-300 cursor-pointer"
+          className="text-left w-full bg-white dark:bg-zinc-900 p-5 lg:p-6 rounded-[24px] border border-zinc-200 dark:border-zinc-800 shadow-xl shadow-zinc-200/40 dark:shadow-black/20 relative overflow-hidden group hover:scale-[1.01] active:scale-95 transition-all duration-300 cursor-pointer"
         >
-          <div className={`absolute top-0 right-0 w-32 h-32 rounded-full -mr-16 -mt-16 transition-transform group-hover:scale-110 ${balance >= 0 ? 'bg-emerald-500/10' : 'bg-red-500/10'}`} />
+          <div className={`absolute top-0 right-0 w-24 h-24 rounded-full -mr-12 -mt-12 transition-transform group-hover:scale-110 ${balance >= 0 ? 'bg-emerald-500/10' : 'bg-red-500/10'}`} />
           <div className="relative">
-            <p className="text-[10px] font-bold uppercase tracking-[0.2em] mb-4 text-zinc-500 font-display">
+            <p className="text-[9px] font-bold uppercase tracking-[0.2em] mb-3 text-zinc-500 font-display">
               {balance >= 0 ? 'You are owed' : 'You owe'}
             </p>
             <p 
-              className={`text-4xl md:text-2xl lg:text-3xl xl:text-4xl font-bold font-display tracking-tight truncate ${balance >= 0 ? 'text-emerald-600 dark:text-emerald-400' : 'text-red-600 dark:text-red-400'}`}
+              className={`text-2xl md:text-xl lg:text-2xl xl:text-3xl font-bold font-display tracking-tight truncate ${balance >= 0 ? 'text-emerald-600 dark:text-emerald-400' : 'text-red-600 dark:text-red-400'}`}
               title={`₹${formatCurrency(Math.abs(balance))}`}
             >
               ₹{formatCurrency(Math.abs(balance))}
@@ -1068,17 +1065,17 @@ export default function GroupView({ groupId, user, onBack, theme }: GroupViewPro
                 <motion.div
                   key={person.name}
                   layout
-                  className="bg-white dark:bg-zinc-900 rounded-[32px] border border-zinc-200 dark:border-zinc-800 shadow-xl shadow-zinc-200/50 dark:shadow-black/20 overflow-hidden flex flex-col pt-2"
+                  className="bg-white dark:bg-zinc-900 rounded-[28px] border border-zinc-200 dark:border-zinc-800 shadow-xl shadow-zinc-200/40 dark:shadow-black/20 overflow-hidden flex flex-col"
                 >
-                  <div className="p-6">
-                    <div className="flex items-center justify-between mb-6">
-                      <div className="flex items-center gap-3">
-                        <div className="w-10 h-10 bg-zinc-100 dark:bg-zinc-800 rounded-2xl flex items-center justify-center text-zinc-500 font-bold font-display">
+                  <div className="p-5">
+                    <div className="flex items-center justify-between mb-5">
+                      <div className="flex items-center gap-2.5">
+                        <div className="w-9 h-9 bg-zinc-100 dark:bg-zinc-800 rounded-xl flex items-center justify-center text-zinc-500 font-bold font-display text-sm">
                           {person.name.charAt(0).toUpperCase()}
                         </div>
                         <div>
-                          <h4 className="font-bold text-zinc-900 dark:text-white">{person.name}</h4>
-                          <p className={`text-[10px] font-bold uppercase tracking-wider ${
+                          <h4 className="font-bold text-zinc-900 dark:text-white text-sm">{person.name}</h4>
+                          <p className={`text-[9px] font-bold uppercase tracking-wider ${
                             person.net > 0 ? 'text-emerald-600' : person.net < 0 ? 'text-amber-600' : 'text-zinc-400'
                           }`}>
                             {person.net > 0 ? 'Owes you' : person.net < 0 ? 'You owe' : 'Settled'}
@@ -1086,7 +1083,7 @@ export default function GroupView({ groupId, user, onBack, theme }: GroupViewPro
                         </div>
                       </div>
                       <div className="text-right">
-                        <p className={`text-lg font-bold font-mono ${
+                        <p className={`text-base font-bold font-mono ${
                           person.net > 0 ? 'text-emerald-600' : person.net < 0 ? 'text-amber-600' : 'text-zinc-900 dark:text-white'
                         }`}>
                           ₹{formatCurrency(Math.abs(person.net))}
@@ -1094,33 +1091,29 @@ export default function GroupView({ groupId, user, onBack, theme }: GroupViewPro
                       </div>
                     </div>
 
-                    <div className="space-y-3">
-                      <div className="flex justify-between text-xs">
-                        <span className="text-zinc-500">Total Lent:</span>
+                    <div className="space-y-2">
+                      <div className="flex justify-between text-[11px]">
+                        <span className="text-zinc-500">Lent:</span>
                         <span className="font-bold text-zinc-700 dark:text-zinc-300">₹{formatCurrency(person.lent)}</span>
                       </div>
-                      <div className="flex justify-between text-xs">
-                        <span className="text-zinc-500">Total Borrowed:</span>
+                      <div className="flex justify-between text-[11px]">
+                        <span className="text-zinc-500">Borrowed:</span>
                         <span className="font-bold text-zinc-700 dark:text-zinc-300">₹{formatCurrency(person.borrowed)}</span>
-                      </div>
-                      <div className="pt-3 border-t border-zinc-100 dark:border-zinc-800 flex justify-between text-xs font-bold">
-                        <span className="text-indigo-600 dark:text-indigo-400">Net Settled:</span>
-                        <span className="text-zinc-700 dark:text-zinc-300">₹{formatCurrency(person.repaidByThem + person.repaidByMe)}</span>
                       </div>
                     </div>
 
-                    <div className="grid grid-cols-2 gap-3 mt-6">
+                    <div className="grid grid-cols-2 gap-2.5 mt-5">
                       <button
                         onClick={() => setSelectedLedgerPerson(selectedLedgerPerson === person.name ? null : person.name)}
-                        className="py-3 bg-zinc-50 dark:bg-white/5 hover:bg-zinc-100 dark:hover:bg-white/10 rounded-2xl text-[9px] font-bold text-zinc-500 dark:text-zinc-400 uppercase tracking-widest transition-all flex items-center justify-center gap-2"
+                        className="py-2.5 bg-zinc-50 dark:bg-white/5 hover:bg-zinc-100 dark:hover:bg-white/10 rounded-xl text-[8px] font-bold text-zinc-500 dark:text-zinc-400 uppercase tracking-widest transition-all flex items-center justify-center gap-1.5"
                       >
-                        {selectedLedgerPerson === person.name ? 'Hide History' : 'History'}
+                        {selectedLedgerPerson === person.name ? 'Hide' : 'History'}
                         <ChevronRight className={`w-3 h-3 transition-transform duration-300 ${selectedLedgerPerson === person.name ? 'rotate-90' : ''}`} />
                       </button>
                       
                       <button
                         onClick={() => handleDirectSettlement(person.name, person.net, person.net > 0 ? 'lent' : 'borrowed')}
-                        className={`py-3 rounded-2xl text-[9px] font-bold uppercase tracking-widest transition-all shadow-lg active:scale-95 ${
+                        className={`py-2.5 rounded-xl text-[8px] font-bold uppercase tracking-widest transition-all shadow-lg active:scale-95 ${
                           person.net > 0 
                             ? 'bg-emerald-600 text-white shadow-emerald-500/20 hover:bg-emerald-700' 
                             : 'bg-amber-600 text-white shadow-amber-500/20 hover:bg-amber-700'
@@ -1401,24 +1394,24 @@ export default function GroupView({ groupId, user, onBack, theme }: GroupViewPro
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-12">
         <div className="lg:col-span-2">
-          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-8">
-            <h2 className="text-xl font-bold tracking-tight text-zinc-900 dark:text-white flex items-center gap-3 font-display">
-              <Receipt className="w-6 h-6 text-zinc-400 dark:text-zinc-500" />
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-6">
+            <h2 className="text-lg font-bold tracking-tight text-zinc-900 dark:text-white flex items-center gap-2.5 font-display">
+              <Receipt className="w-5 h-5 text-zinc-400 dark:text-zinc-500" />
               Transaction History
             </h2>
-            <div className="relative w-full sm:w-64">
-              <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-zinc-400" />
+            <div className="relative w-full sm:w-56">
+              <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-zinc-400" />
               <input
                 type="text"
                 value={expenseSearchTerm}
                 onChange={(e) => setExpenseSearchTerm(e.target.value)}
                 placeholder="Search transactions..."
-                className="w-full pl-10 pr-4 py-2.5 bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-2xl text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all dark:text-white"
+                className="w-full pl-9 pr-4 py-2 bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-xl text-xs focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all dark:text-white"
               />
               {expenseSearchTerm && (
                 <button
                   onClick={() => setExpenseSearchTerm('')}
-                  className="absolute right-3 top-1/2 -translate-y-1/2 p-1 hover:bg-zinc-100 dark:hover:bg-zinc-800 rounded-full text-zinc-400 transition-colors"
+                  className="absolute right-2.5 top-1/2 -translate-y-1/2 p-0.5 hover:bg-zinc-100 dark:hover:bg-zinc-800 rounded-full text-zinc-400 transition-colors"
                 >
                   <X className="w-3 h-3" />
                 </button>
@@ -1426,25 +1419,25 @@ export default function GroupView({ groupId, user, onBack, theme }: GroupViewPro
             </div>
           </div>
           
-          <div className="bg-white dark:bg-zinc-900 rounded-[40px] border border-zinc-200 dark:border-zinc-800 overflow-hidden shadow-xl shadow-zinc-200/50 dark:shadow-black/20">
+          <div className="bg-white dark:bg-zinc-900 rounded-[28px] border border-zinc-200 dark:border-zinc-800 overflow-hidden shadow-xl shadow-zinc-200/40 dark:shadow-black/20">
             {expenses.length === 0 ? (
-              <div className="p-10 sm:p-20 text-center">
-                <div className="w-16 h-16 sm:w-20 sm:h-20 bg-zinc-50 dark:bg-zinc-800 rounded-full flex items-center justify-center mx-auto mb-6">
-                  <Receipt className="w-8 h-8 sm:w-10 sm:h-10 text-zinc-300 dark:text-zinc-600" />
+              <div className="p-10 sm:p-16 text-center text-sm">
+                <div className="w-12 h-12 bg-zinc-50 dark:bg-zinc-800 rounded-full flex items-center justify-center mx-auto mb-4">
+                  <Receipt className="w-6 h-6 text-zinc-300 dark:text-zinc-600" />
                 </div>
-                <h3 className="text-lg font-bold text-zinc-900 dark:text-white mb-2">No transactions yet</h3>
-                <p className="text-zinc-500 dark:text-zinc-400 max-w-xs mx-auto text-sm">Start tracking your shared expenses by adding your first transaction.</p>
+                <h3 className="text-base font-bold text-zinc-900 dark:text-white mb-2">No transactions yet</h3>
+                <p className="text-zinc-500 dark:text-zinc-400 max-w-xs mx-auto text-xs">Start tracking your shared expenses by adding your first transaction.</p>
               </div>
             ) : filteredExpenses.length === 0 ? (
-              <div className="p-10 sm:p-20 text-center">
-                <div className="w-16 h-16 sm:w-20 sm:h-20 bg-zinc-50 dark:bg-zinc-800 rounded-full flex items-center justify-center mx-auto mb-6">
-                  <Search className="w-8 h-8 sm:w-10 sm:h-10 text-zinc-300 dark:text-zinc-600" />
+              <div className="p-10 sm:p-16 text-center text-sm">
+                <div className="w-12 h-12 bg-zinc-50 dark:bg-zinc-800 rounded-full flex items-center justify-center mx-auto mb-4">
+                  <Search className="w-6 h-6 text-zinc-300 dark:text-zinc-600" />
                 </div>
-                <h3 className="text-lg font-bold text-zinc-900 dark:text-white mb-2">No matches found</h3>
-                <p className="text-zinc-500 dark:text-zinc-400 max-w-xs mx-auto text-sm">We couldn't find any transactions matching "{expenseSearchTerm}".</p>
+                <h3 className="text-base font-bold text-zinc-900 dark:text-white mb-2">No matches found</h3>
+                <p className="text-zinc-500 dark:text-zinc-400 max-w-xs mx-auto text-xs">We couldn't find any transactions matching "{expenseSearchTerm}".</p>
                 <button 
                   onClick={() => setExpenseSearchTerm('')}
-                  className="mt-6 text-sm font-bold text-indigo-600 dark:text-indigo-400 hover:underline"
+                  className="mt-4 text-[10px] font-bold text-indigo-600 dark:text-indigo-400 hover:underline uppercase tracking-wider"
                 >
                   Clear search
                 </button>
@@ -1452,18 +1445,18 @@ export default function GroupView({ groupId, user, onBack, theme }: GroupViewPro
             ) : (
               <div className="divide-y divide-zinc-100 dark:divide-zinc-800">
                 {filteredExpenses.map(expense => (
-                  <div key={expense.id} className="p-4 sm:p-6 flex flex-col sm:flex-row sm:items-center justify-between group transition-all duration-200 gap-4 hover:bg-zinc-50 dark:hover:bg-zinc-800/50">
-                    <div className="flex items-center gap-4 sm:gap-5 min-w-0">
-                      <div className="w-12 h-12 sm:w-14 sm:h-14 bg-zinc-50 dark:bg-zinc-800 rounded-2xl flex flex-col items-center justify-center text-zinc-400 dark:text-zinc-500 border border-zinc-100 dark:border-zinc-700 group-hover:bg-white dark:group-hover:bg-zinc-800 transition-colors shrink-0">
-                        <span className="text-[9px] sm:text-[10px] font-bold uppercase tracking-tighter text-zinc-500">{expense.date.toDate().toLocaleDateString('en-US', { month: 'short' })}</span>
-                        <span className="text-lg sm:text-xl font-bold leading-none text-zinc-900 dark:text-white">{expense.date.toDate().getDate()}</span>
+                  <div key={expense.id} className="p-4 sm:p-5 flex flex-col sm:flex-row sm:items-center justify-between group transition-all duration-200 gap-3 hover:bg-zinc-50 dark:hover:bg-zinc-800/50">
+                    <div className="flex items-center gap-3.5 sm:gap-4 min-w-0">
+                      <div className="w-10 h-10 sm:w-12 sm:h-12 bg-zinc-50 dark:bg-zinc-800 rounded-xl flex flex-col items-center justify-center text-zinc-400 dark:text-zinc-500 border border-zinc-100 dark:border-zinc-700 group-hover:bg-white dark:group-hover:bg-zinc-800 transition-colors shrink-0">
+                        <span className="text-[8px] sm:text-[9px] font-bold uppercase tracking-tighter text-zinc-500">{expense.date.toDate().toLocaleDateString('en-US', { month: 'short' })}</span>
+                        <span className="text-base sm:text-lg font-bold leading-none text-zinc-900 dark:text-white">{expense.date.toDate().getDate()}</span>
                       </div>
                       <div className="min-w-0">
-                        <p className="font-bold text-zinc-900 dark:text-white group-hover:text-indigo-600 dark:group-hover:text-indigo-400 transition-colors truncate">{expense.description}</p>
-                        <div className="flex flex-wrap items-center gap-2 mt-1">
-                          <span className="px-2 py-0.5 bg-zinc-100 dark:bg-zinc-800 rounded-full text-[9px] sm:text-[10px] font-bold text-zinc-500 dark:text-zinc-400 uppercase tracking-wider border border-zinc-200 dark:border-zinc-700 shrink-0">{expense.category}</span>
+                        <p className="font-bold text-zinc-900 dark:text-white group-hover:text-indigo-600 dark:group-hover:text-indigo-400 transition-colors truncate text-sm sm:text-base">{expense.description}</p>
+                        <div className="flex flex-wrap items-center gap-2 mt-0.5">
+                          <span className="px-1.5 py-0.5 bg-zinc-100 dark:bg-zinc-800 rounded-md text-[8px] sm:text-[9px] font-bold text-zinc-500 dark:text-zinc-400 uppercase tracking-wider border border-zinc-200 dark:border-zinc-700 shrink-0">{expense.category}</span>
                           {expense.type && expense.type !== 'expense' && (
-                            <span className={`px-2 py-0.5 rounded-full text-[9px] sm:text-[10px] font-bold uppercase tracking-wider border flex items-center gap-1 shrink-0 ${
+                            <span className={`px-1.5 py-0.5 rounded-md text-[8px] sm:text-[9px] font-bold uppercase tracking-wider border flex items-center gap-1 shrink-0 ${
                               expense.type === 'borrowed' ? 'bg-amber-50 dark:bg-amber-500/10 text-amber-600 dark:text-amber-400 border-amber-100 dark:border-amber-500/20' :
                               expense.type === 'lent' ? 'bg-emerald-50 dark:bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border-emerald-100 dark:border-emerald-500/20' :
                               'bg-indigo-50 dark:bg-indigo-500/10 text-indigo-600 dark:text-indigo-400 border-indigo-100 dark:border-indigo-500/20'
@@ -1471,44 +1464,34 @@ export default function GroupView({ groupId, user, onBack, theme }: GroupViewPro
                               {expense.type} {expense.relatedParty ? `• ${expense.relatedParty}` : ''}
                             </span>
                           )}
-                          {expense.isRecurring && (
-                            <span className="px-2 py-0.5 bg-indigo-50 dark:bg-indigo-500/10 rounded-full text-[9px] sm:text-[10px] font-bold text-indigo-600 dark:text-indigo-400 uppercase tracking-wider border border-indigo-100 dark:border-indigo-500/20 flex items-center gap-1 shrink-0">
-                              <Calendar className="w-2.5 h-2.5" />
-                              Recurring
-                            </span>
-                          )}
-                          {expense.recurringTemplateId && (
-                            <span className="px-2 py-0.5 bg-emerald-50 dark:bg-emerald-500/10 rounded-full text-[9px] sm:text-[10px] font-bold text-emerald-600 dark:text-emerald-400 uppercase tracking-wider border border-emerald-100 dark:border-emerald-500/20 shrink-0">Auto-generated</span>
-                          )}
-                          <span className="text-zinc-300 dark:text-zinc-700 hidden sm:inline shrink-0">•</span>
-                          <span className="text-[10px] sm:text-xs text-zinc-500 dark:text-zinc-400 font-medium truncate">Paid by {members.find(m => m.uid === expense.paidBy)?.displayName || 'Unknown'}</span>
+                          <span className="text-[9px] sm:text-[10px] text-zinc-500 dark:text-zinc-400 font-medium truncate">Paid by {members.find(m => m.uid === expense.paidBy)?.displayName || 'Unknown'}</span>
                         </div>
                       </div>
                     </div>
-                    <div className="flex items-center justify-between sm:justify-end gap-4 sm:gap-6 w-full sm:w-auto shrink-0 mt-4 sm:mt-0">
+                    <div className="flex items-center justify-between sm:justify-end gap-3 sm:gap-5 w-full sm:w-auto shrink-0 mt-3 sm:mt-0 pt-2 sm:pt-0 border-t border-zinc-50 dark:border-zinc-800 sm:border-0">
                       <div className="text-left sm:text-right min-w-0">
                         <p 
-                          className="text-lg sm:text-xl font-bold text-zinc-900 dark:text-white font-mono tracking-tight truncate"
+                          className="text-base sm:text-lg font-bold text-zinc-900 dark:text-white font-mono tracking-tight truncate"
                           title={`₹${formatCurrency(expense.amount)}`}
                         >
                           ₹{formatCurrency(expense.amount)}
                         </p>
-                        <p className="text-[9px] sm:text-[10px] font-bold text-zinc-500 uppercase tracking-widest">Amount</p>
+                        <p className="text-[8px] sm:text-[9px] font-bold text-zinc-500 uppercase tracking-widest">Amount</p>
                       </div>
-                      <div className="flex items-center gap-1">
+                      <div className="flex items-center gap-0.5">
                         <button 
                           onClick={() => setEditingExpense(expense)}
-                          className="p-2 text-zinc-400 hover:text-indigo-600 dark:hover:text-indigo-400 hover:bg-indigo-50 dark:hover:bg-indigo-500/10 rounded-xl sm:opacity-0 group-hover:opacity-100 focus:opacity-100 focus:bg-indigo-50 dark:focus:bg-indigo-500/10 transition-all active:scale-90 outline-none focus:ring-2 focus:ring-indigo-500"
+                          className="p-1.5 text-zinc-400 hover:text-indigo-600 dark:hover:text-indigo-400 hover:bg-indigo-50 dark:hover:bg-indigo-500/10 rounded-lg sm:opacity-0 group-hover:opacity-100 transition-all outline-none"
                           title="Edit Expense"
                         >
-                          <Pencil className="w-4 h-4" />
+                          <Pencil className="w-3.5 h-3.5" />
                         </button>
                         <button 
                           onClick={() => setExpenseToDelete(expense.id)}
-                          className="p-2 text-zinc-400 hover:text-red-600 dark:hover:text-red-400 hover:bg-red-50 dark:hover:bg-red-500/10 rounded-xl sm:opacity-0 group-hover:opacity-100 focus:opacity-100 focus:bg-red-50 dark:focus:bg-red-500/10 transition-all active:scale-90 outline-none focus:ring-2 focus:ring-red-500"
+                          className="p-1.5 text-zinc-400 hover:text-red-600 dark:hover:text-red-400 hover:bg-red-50 dark:hover:bg-red-500/10 rounded-lg sm:opacity-0 group-hover:opacity-100 focus:opacity-100 transition-all outline-none"
                           title="Delete Expense"
                         >
-                          <Trash2 className="w-4 h-4" />
+                          <Trash2 className="w-3.5 h-3.5" />
                         </button>
                       </div>
                     </div>
