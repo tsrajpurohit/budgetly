@@ -14,7 +14,7 @@ import {
   Loader2,
   X
 } from 'lucide-react';
-import { Group, Expense, BudgetType, CATEGORIES } from '../types';
+import { Group, Expense, BudgetType, CATEGORIES, TransactionType } from '../types';
 import { db } from '../firebase';
 import { collection, query, onSnapshot, orderBy, limit, doc, updateDoc, deleteDoc, Timestamp } from 'firebase/firestore';
 import { User } from 'firebase/auth';
@@ -70,6 +70,8 @@ export default function Dashboard({ user, groups, onSelectGroup, theme }: Dashbo
   const [editDescription, setEditDescription] = useState('');
   const [editCategory, setEditCategory] = useState(CATEGORIES[0]);
   const [editDate, setEditDate] = useState(new Date().toISOString().split('T')[0]);
+  const [editType, setEditType] = useState<TransactionType>('expense');
+  const [editRelatedParty, setEditRelatedParty] = useState('');
 
   useEffect(() => {
     if (editingExpense) {
@@ -77,6 +79,8 @@ export default function Dashboard({ user, groups, onSelectGroup, theme }: Dashbo
       setEditDescription(editingExpense.description);
       setEditCategory(editingExpense.category);
       setEditDate(editingExpense.date.toDate().toISOString().split('T')[0]);
+      setEditType(editingExpense.type || 'expense');
+      setEditRelatedParty(editingExpense.relatedParty || '');
     }
   }, [editingExpense]);
 
@@ -104,6 +108,8 @@ export default function Dashboard({ user, groups, onSelectGroup, theme }: Dashbo
         description: editDescription,
         category: editCategory,
         date: Timestamp.fromDate(new Date(editDate)),
+        type: editType,
+        relatedParty: editType !== 'expense' ? editRelatedParty.trim() : null
       });
       setEditingExpense(null);
     } catch (error) {
@@ -191,7 +197,8 @@ export default function Dashboard({ user, groups, onSelectGroup, theme }: Dashbo
           
           const gExpenses = expensesMap.get(g.id) || [];
           const currentPeriodExpenses = gExpenses.filter(e => 
-            isDateInCurrentPeriod(e.date.toDate(), g.budgetType || 'total')
+            isDateInCurrentPeriod(e.date.toDate(), g.budgetType || 'total') && 
+            (!e.type || e.type === 'expense')
           );
           
           const totalSpent = currentPeriodExpenses.reduce((sum, e) => sum + e.amount, 0);
@@ -370,6 +377,15 @@ export default function Dashboard({ user, groups, onSelectGroup, theme }: Dashbo
                           <p className="font-bold text-zinc-900 dark:text-white text-base sm:text-lg truncate">{expense.description}</p>
                           <div className="flex flex-wrap items-center gap-2 sm:gap-3 mt-1">
                             <span className="text-[9px] sm:text-[10px] font-bold text-indigo-600 dark:text-indigo-400 uppercase tracking-wider px-2 py-0.5 sm:px-2.5 sm:py-1 bg-indigo-50 dark:bg-indigo-500/10 rounded-lg border border-indigo-100 dark:border-indigo-500/20">{expense.category}</span>
+                            {expense.type && expense.type !== 'expense' && (
+                              <span className={`text-[9px] sm:text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-lg border ${
+                                expense.type === 'borrowed' ? 'bg-amber-50 dark:bg-amber-500/10 text-amber-600 dark:text-amber-400 border-amber-100 dark:border-amber-500/20' :
+                                expense.type === 'lent' ? 'bg-emerald-50 dark:bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border-emerald-100 dark:border-emerald-500/20' :
+                                'bg-indigo-50 dark:bg-indigo-500/10 text-indigo-600 dark:text-indigo-400 border-indigo-100 dark:border-indigo-500/20'
+                              }`}>
+                                {expense.type} {expense.relatedParty ? `• ${expense.relatedParty}` : ''}
+                              </span>
+                            )}
                             <span className="text-[9px] sm:text-[10px] text-zinc-500 font-mono font-bold">
                               {expense.date.toDate().toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
                             </span>
@@ -541,6 +557,35 @@ export default function Dashboard({ user, groups, onSelectGroup, theme }: Dashbo
                       required
                     />
                   </div>
+                </div>
+
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-[10px] font-bold text-zinc-400 uppercase tracking-[0.15em] mb-2">Type</label>
+                    <select
+                      value={editType}
+                      onChange={(e) => setEditType(e.target.value as TransactionType)}
+                      className="w-full px-5 py-4 bg-zinc-50 dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 rounded-2xl focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all font-medium appearance-none dark:text-white"
+                    >
+                      <option value="expense">Expense</option>
+                      <option value="borrowed">Borrowed</option>
+                      <option value="lent">Lent</option>
+                      <option value="repayment">Repayment</option>
+                    </select>
+                  </div>
+                  {editType !== 'expense' && (
+                    <div>
+                      <label className="block text-[10px] font-bold text-zinc-400 uppercase tracking-[0.15em] mb-2">Person</label>
+                      <input
+                        type="text"
+                        value={editRelatedParty}
+                        onChange={(e) => setEditRelatedParty(e.target.value)}
+                        className="w-full px-5 py-4 bg-zinc-50 dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 rounded-2xl focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all font-medium dark:text-white"
+                        placeholder="Who?"
+                        required
+                      />
+                    </div>
+                  )}
                 </div>
                 <button
                   type="submit"
