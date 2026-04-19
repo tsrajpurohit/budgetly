@@ -1,182 +1,133 @@
-// ===============================================================
-// Assumed Data Model
-// ===============================================================
-//
-// Collection: users
-// Document ID: {userId} (matches auth.uid)
-// Fields:
-//   - uid: string (required)
-//   - displayName: string (optional)
-//   - email: string (required)
-//   - photoURL: string (optional)
-//   - createdAt: timestamp (optional)
-//
-// Collection: groups
-// Document ID: {groupId}
-// Fields:
-//   - id: string (optional)
-//   - name: string (required, 1-100 chars)
-//   - description: string (optional, 0-500 chars)
-//   - createdBy: string (required, matches auth.uid)
-//   - createdAt: timestamp (required)
-//   - type: string (required, enum: personal, household, trip, other)
-//   - memberIds: list (required, strings of UIDs)
-//   - maxBudget: number (optional, positive)
-//   - budgetType: string (optional, enum: weekly, monthly, total)
-//
-// Collection: groups/{groupId}/expenses
-// Document ID: {expenseId}
-// Fields:
-//   - id: string (optional)
-//   - amount: number (required, positive)
-//   - description: string (required, 1-200 chars)
-//   - category: string (required)
-//   - paidBy: string (required, matches a member UID)
-//   - date: timestamp (required)
-//   - createdAt: timestamp (required)
-//   - splitType: string (optional, enum: equal, percentage, exact)
-//   - isRecurring: boolean (optional)
-//   - recurringTemplateId: string (optional)
-//
-// Collection: groups/{groupId}/members
-// Document ID: {userId}
-// Fields:
-//   - uid: string (required, matches auth.uid)
-//   - role: string (required, enum: admin, member)
-//   - joinedAt: timestamp (required)
-//   - displayName: string (optional)
-//   - email: string (optional)
-//
-// ===============================================================
-
 rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
 
     // ===============================================================
-    // Helper Functions
+    // DEFAULT DENY
     // ===============================================================
-
-    function isAuthenticated() {
-      return request.auth != null;
-    }
-
-    function isOwner(userId) {
-      return isAuthenticated() && request.auth.uid == userId;
-    }
-
-    function isMember(data) {
-      return isAuthenticated() && request.auth.uid in data.get('memberIds', []);
-    }
-
-    function isGroupMember(groupId) {
-      return isAuthenticated() && request.auth.uid in get(/databases/$(database)/documents/groups/$(groupId)).data.get('memberIds', []);
-    }
-
-    function isGroupAdmin(groupId) {
-      return isAuthenticated() && 
-        get(/databases/$(database)/documents/groups/$(groupId)/members/$(request.auth.uid)).data.get('role', '') == 'admin';
-    }
-
-    function isValidEmail(email) {
-      return email is string && email.matches("^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\\.[a-zA-Z]{2,}$");
-    }
-
-    function isValidUrl(url) {
-      return url is string && (url.matches("^https://.*") || url.matches("^http://.*"));
-    }
-
-    function hasOnlyAllowedFields(fields) {
-      return request.resource.data.keys().hasOnly(fields);
-    }
-
-    // ===============================================================
-    // Domain Validators
-    // ===============================================================
-
-    function isValidUser(data) {
-      return data.get('uid', '') == request.auth.uid &&
-             data.get('email', '') is string && isValidEmail(data.get('email', '')) &&
-             (data.get('displayName', null) == null || (data.get('displayName', '') is string && data.get('displayName', '').size() <= 100)) &&
-             (data.get('photoURL', null) == null || isValidUrl(data.get('photoURL', ''))) &&
-             data.get('createdAt', null) != null;
-    }
-
-    function isValidGroup(data) {
-      return data.get('name', '') is string && data.get('name', '').size() >= 1 &&
-             data.get('createdBy', '') == request.auth.uid &&
-             data.get('memberIds', []) is list && data.get('memberIds', []).size() > 0 &&
-             data.get('createdAt', null) != null;
-    }
-
-    function isValidExpense(data, groupId) {
-      return data.get('amount', 0) is number && data.get('amount', 0) > 0 &&
-             data.get('description', '') is string && data.get('description', '').size() >= 1 && data.get('description', '').size() <= 200 &&
-             data.get('category', '') is string &&
-             data.get('paidBy', '') in get(/databases/$(database)/documents/groups/$(groupId)).data.memberIds &&
-             data.get('date', null) is timestamp &&
-             data.get('createdAt', null) != null &&
-             (data.get('splitType', null) == null || data.get('splitType', '') in ['equal', 'percentage', 'exact']) &&
-             (data.get('isRecurring', null) == null || data.get('isRecurring', false) is bool) &&
-             (data.get('recurringTemplateId', null) == null || data.get('recurringTemplateId', '') is string);
-    }
-
-    function isValidGroupMember(data) {
-      return data.get('uid', '') is string && data.get('uid', '').size() > 0 &&
-             data.get('role', '') in ['admin', 'member'] &&
-             data.get('joinedAt', null) is timestamp &&
-             (data.get('displayName', null) == null || (data.get('displayName', '') is string && data.get('displayName', '').size() <= 100)) &&
-             (data.get('email', null) == null || isValidEmail(data.get('email', '')));
-    }
-
-    function isAdmin() {
-      return isAuthenticated() &&
-        ((exists(/databases/$(database)/documents/users/$(request.auth.uid)) && 
-          get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin') ||
-          (request.auth.token.email == "TSRajpurohit322@gmail.com" && request.auth.token.email_verified == true)); // Default admin
-    }
-
-    // ===============================================================
-    // Rules
-    // ===============================================================
-
-    // Default deny
     match /{document=**} {
       allow read, write: if false;
     }
 
-    // Users collection
-    match /users/{userId} {
-      allow read: if isOwner(userId);
-      allow create: if isOwner(userId) && isValidUser(request.resource.data);
-      allow update: if isOwner(userId) && isValidUser(request.resource.data) &&
-                    request.resource.data.uid == resource.data.uid;
+    // ===============================================================
+    // HELPERS
+    // ===============================================================
+    function isAuthenticated() { return request.auth != null; }
+    function isOwner(userId) { return isAuthenticated() && request.auth.uid == userId; }
+    function incoming() { return request.resource.data; }
+    function existing() { return resource.data; }
+    
+    function isValidId(id) { 
+      return id is string && id.size() >= 1 && id.size() <= 128 && id.matches('^[a-zA-Z0-9_\\-]+$'); 
     }
 
-    // Groups collection
-    match /groups/{groupId} {
-      allow read: if isAuthenticated();
-      allow create: if isAuthenticated() && isValidGroup(request.resource.data);
-      allow update: if isAuthenticated() && (request.auth.uid in resource.data.memberIds) && 
-                    isValidGroup(request.resource.data);
-      allow delete: if isAuthenticated() && resource.data.get('createdBy', '') == request.auth.uid;
+    function isGroupMember(groupId) {
+      return isAuthenticated() && exists(/databases/$(database)/documents/groups/$(groupId)) &&
+             request.auth.uid in get(/databases/$(database)/documents/groups/$(groupId)).data.memberIds;
+    }
 
-      // Expenses subcollection
+    function isGroupAdmin(groupId) {
+      return isAuthenticated() && exists(/databases/$(database)/documents/groups/$(groupId)/members/$(request.auth.uid)) &&
+             get(/databases/$(database)/documents/groups/$(groupId)/members/$(request.auth.uid)).data.role == 'admin';
+    }
+
+    // ===============================================================
+    // DOMAIN VALIDATORS
+    // ===============================================================
+
+    function isValidUser(data) {
+      return data.keys().hasAll(['uid', 'email', 'createdAt']) &&
+             data.uid == request.auth.uid &&
+             data.email is string && data.email.size() <= 200 &&
+             (data.get('displayName', null) == null || (data.displayName is string && data.displayName.size() <= 100)) &&
+             (data.get('photoURL', null) == null || (data.photoURL is string && data.photoURL.size() <= 500)) &&
+             data.createdAt is timestamp;
+    }
+
+    function isValidGroup(data) {
+      return data.keys().hasAll(['name', 'createdBy', 'type', 'memberIds', 'createdAt']) &&
+             data.name is string && data.name.size() >= 1 && data.name.size() <= 100 &&
+             data.createdBy == request.auth.uid &&
+             data.type in ['personal', 'household', 'trip', 'other'] &&
+             data.memberIds is list && data.memberIds.size() > 0 && data.memberIds.size() <= 50 &&
+             data.createdAt is timestamp &&
+             (data.get('description', null) == null || (data.description is string && data.description.size() <= 500)) &&
+             (data.get('maxBudget', null) == null || (data.maxBudget is number && data.maxBudget >= 0)) &&
+             (data.get('budgetType', null) == null || data.budgetType in ['weekly', 'monthly', 'total']);
+    }
+
+    function isValidExpense(data, groupId) {
+      let groupData = get(/databases/$(database)/documents/groups/$(groupId)).data;
+      let isMember = data.paidBy in groupData.memberIds;
+      let isExternal = data.paidBy.matches('^external_person_.*');
+      
+      return data.keys().hasAll(['amount', 'description', 'paidBy', 'date', 'category', 'createdAt']) &&
+             data.amount is number && data.amount > 0 &&
+             data.description is string && data.description.size() >= 1 && data.description.size() <= 200 &&
+             data.category is string && data.category.size() <= 50 &&
+             (isMember || isExternal) &&
+             data.date is timestamp &&
+             data.createdAt is timestamp &&
+             (data.get('type', null) == null || data.type in ['expense', 'borrowed', 'lent', 'repayment']) &&
+             (data.get('relatedParty', null) == null || (data.relatedParty is string && data.relatedParty.size() <= 100)) &&
+             (data.get('splitType', null) == null || data.splitType in ['equal', 'percentage', 'exact']) &&
+             (data.get('isRecurring', null) == null || data.isRecurring is bool) &&
+             (data.get('frequency', null) == null || data.frequency in ['daily', 'weekly', 'monthly', 'yearly']) &&
+             (data.get('endDate', null) == null || data.endDate is timestamp) &&
+             (data.get('recurringTemplateId', null) == null || (data.recurringTemplateId is string && data.recurringTemplateId.size() <= 128));
+    }
+
+    function isValidGroupMember(data, targetUserId) {
+      return data.keys().hasAll(['uid', 'role', 'joinedAt']) &&
+             data.uid == targetUserId &&
+             data.role in ['admin', 'member'] &&
+             data.joinedAt is timestamp &&
+             (data.get('displayName', null) == null || (data.displayName is string && data.displayName.size() <= 100)) &&
+             (data.get('email', null) == null || (data.email is string && data.email.size() <= 200));
+    }
+
+    // ===============================================================
+    // COLLECTIONS
+    // ===============================================================
+
+    // Users
+    match /users/{userId} {
+      allow read: if isOwner(userId);
+      allow create: if isOwner(userId) && isValidUser(incoming());
+      allow update: if isOwner(userId) && isValidUser(incoming()) && 
+                    incoming().uid == existing().uid; // Immutable UID
+    }
+
+    // Groups
+    match /groups/{groupId} {
+      allow read: if isAuthenticated() && (request.auth.uid in resource.data.memberIds);
+      allow create: if isAuthenticated() && isValidGroup(incoming()) && isValidId(groupId);
+      allow update: if isGroupMember(groupId) && (
+        // Regular update by member
+        isValidGroup(incoming()) && (
+          // Ensure they don't change creator
+          incoming().createdBy == existing().createdBy &&
+          // Ensure they are still in members
+          request.auth.uid in incoming().memberIds
+        )
+      );
+      allow delete: if isAuthenticated() && resource.data.createdBy == request.auth.uid;
+
+      // Expenses
       match /expenses/{expenseId} {
         allow read: if isGroupMember(groupId);
-        allow create: if isGroupMember(groupId) && isValidExpense(request.resource.data, groupId);
-        allow update: if isGroupMember(groupId) && isValidExpense(request.resource.data, groupId);
+        allow create: if isGroupMember(groupId) && isValidExpense(incoming(), groupId) && isValidId(expenseId);
+        allow update: if isGroupMember(groupId) && isValidExpense(incoming(), groupId);
         allow delete: if isGroupMember(groupId);
       }
 
-      // Members subcollection
-      match /members/{userId} {
+      // Members
+      match /members/{memberId} {
         allow read: if isGroupMember(groupId);
-        // Allow user to add themselves if they are in memberIds or if an admin adds them
-        allow create: if isAuthenticated() && isValidGroupMember(request.resource.data) &&
-                      (isOwner(userId) || isGroupAdmin(groupId));
-        allow update: if isGroupAdmin(groupId) && isValidGroupMember(request.resource.data);
-        allow delete: if isGroupAdmin(groupId) || isOwner(userId);
+        allow create: if isAuthenticated() && isValidGroupMember(incoming(), memberId) &&
+                      (isOwner(memberId) || isGroupAdmin(groupId));
+        allow update: if isGroupAdmin(groupId) && isValidGroupMember(incoming(), memberId);
+        allow delete: if isGroupAdmin(groupId) || isOwner(memberId);
       }
     }
   }
