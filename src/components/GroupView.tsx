@@ -23,7 +23,12 @@ import {
   Grid3X3,
   ChevronRight,
   X,
-  Search
+  Search,
+  Image as ImageIcon,
+  Paperclip,
+  Eye,
+  FileText,
+  Camera
 } from 'lucide-react';
 import Markdown from 'react-markdown';
 import { GoogleGenAI } from "@google/genai";
@@ -40,7 +45,7 @@ import {
   Cell,
   Legend
 } from 'recharts';
-import { db } from '../firebase';
+import { db, storage } from '../firebase';
 import { 
   collection, 
   query, 
@@ -55,8 +60,14 @@ import {
   getDocs,
   where,
   updateDoc,
-  arrayUnion
+  arrayUnion,
+  deleteField
 } from 'firebase/firestore';
+import { 
+  ref, 
+  uploadBytesResumable, 
+  getDownloadURL 
+} from 'firebase/storage';
 import { User } from 'firebase/auth';
 import { Group, Expense, GroupMember, CATEGORIES, BudgetType, RecurrenceFrequency, TransactionType } from '../types';
 import { formatCurrency } from '../utils/format';
@@ -110,6 +121,13 @@ export default function GroupView({ groupId, user, onBack, theme }: GroupViewPro
   const [ledgerViewMode, setLedgerViewMode] = useState<'lent' | 'borrowed' | null>(null);
   const [isPersonDropdownOpen, setIsPersonDropdownOpen] = useState(false);
   const [expenseSearchTerm, setExpenseSearchTerm] = useState('');
+
+  // Attachment states
+  const [attachment, setAttachment] = useState<File | null>(null);
+  const [attachmentPreview, setAttachmentPreview] = useState<string | null>(null);
+  const [uploadProgress, setUploadProgress] = useState<number | null>(null);
+  const [isUploading, setIsUploading] = useState(false);
+  const [viewingAttachmentUrl, setViewingAttachmentUrl] = useState<string | null>(null);
 
   const statModalRef = useRef<HTMLDivElement>(null);
   const analysisModalRef = useRef<HTMLDivElement>(null);
@@ -221,6 +239,8 @@ export default function GroupView({ groupId, user, onBack, theme }: GroupViewPro
       setTransactionType(editingExpense.type || 'expense');
       setRelatedParty(editingExpense.relatedParty || (editingExpense.paidBy.startsWith('external_person_') ? editingExpense.paidBy.replace('external_person_', '') : ''));
       setIsPayorMe(editingExpense.paidBy === user.uid);
+      setAttachmentPreview(editingExpense.attachmentUrl || null);
+      setAttachment(null);
       setIsAddExpenseOpen(true);
     } else {
       setAmount('');
@@ -233,6 +253,10 @@ export default function GroupView({ groupId, user, onBack, theme }: GroupViewPro
       setTransactionType('expense');
       setRelatedParty('');
       setIsPayorMe(true);
+      setAttachment(null);
+      setAttachmentPreview(null);
+      setUploadProgress(null);
+      setIsUploading(false);
     }
   }, [editingExpense]);
 
@@ -330,11 +354,64 @@ export default function GroupView({ groupId, user, onBack, theme }: GroupViewPro
     checkRecurringExpenses();
   }, [groupId, user]);
 
+  const handleRemoveAttachment = () => {
+    setAttachment(null);
+    setAttachmentPreview(null);
+  };
+
+  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      if (file.size > 5 * 1024 * 1024) {
+        alert('File size must be less than 5MB');
+        return;
+      }
+      setAttachment(file);
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        setAttachmentPreview(reader.result as string);
+      };
+      reader.readAsDataURL(file);
+    }
+  };
+
   const handleAddExpense = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!amount || !description) return;
 
     try {
+      setIsUploading(true);
+      let finalAttachmentUrl = editingExpense?.attachmentUrl || null;
+
+      // If we have a new attachment, upload it
+      if (attachment) {
+        const fileExt = attachment.name.split('.').pop();
+        const fileName = `${Date.now()}_${Math.random().toString(36).substring(7)}.${fileExt}`;
+        const storageRef = ref(storage, `attachments/${groupId}/${fileName}`);
+        const uploadTask = uploadBytesResumable(storageRef, attachment);
+
+        finalAttachmentUrl = await new Promise((resolve, reject) => {
+          uploadTask.on(
+            'state_changed',
+            (snapshot) => {
+              const progress = (snapshot.bytesTransferred / snapshot.totalBytes) * 100;
+              setUploadProgress(progress);
+            },
+            (error) => {
+              console.error("Upload error:", error);
+              reject(error);
+            },
+            async () => {
+              const downloadURL = await getDownloadURL(uploadTask.snapshot.ref);
+              resolve(downloadURL);
+            }
+          );
+        });
+      } else if (!attachmentPreview) {
+        // If preview was cleared, remove the URL
+        finalAttachmentUrl = null;
+      }
+
       const expenseData: any = {
         amount: parseFloat(amount),
         description: description.trim(),
@@ -347,7 +424,8 @@ export default function GroupView({ groupId, user, onBack, theme }: GroupViewPro
         frequency: isRecurring ? frequency : null,
         endDate: isRecurring && recurrenceEndDate ? Timestamp.fromDate(new Date(recurrenceEndDate)) : null,
         type: transactionType,
-        relatedParty: transactionType !== 'expense' ? relatedParty.trim() : null
+        relatedParty: transactionType !== 'expense' ? relatedParty.trim() : null,
+        attachmentUrl: finalAttachmentUrl
       };
 
       if (editingExpense) {
@@ -361,8 +439,13 @@ export default function GroupView({ groupId, user, onBack, theme }: GroupViewPro
       setAmount('');
       setDescription('');
       setIsPersonDropdownOpen(false);
+      setAttachment(null);
+      setAttachmentPreview(null);
+      setUploadProgress(null);
+      setIsUploading(false);
     } catch (error) {
       handleFirestoreError(error, editingExpense ? OperationType.UPDATE : OperationType.CREATE, `groups/${groupId}/expenses`);
+      setIsUploading(false);
     }
   };
 
@@ -1147,7 +1230,17 @@ export default function GroupView({ groupId, user, onBack, theme }: GroupViewPro
                                   {item.type === 'lent' ? 'L' : item.type === 'borrowed' ? 'B' : 'R'}
                                 </div>
                                 <div className="min-w-0">
-                                  <p className="text-xs font-bold text-zinc-900 dark:text-white truncate">{item.description}</p>
+                                  <div className="flex items-center gap-2">
+                                    <p className="text-xs font-bold text-zinc-900 dark:text-white truncate">{item.description}</p>
+                                    {item.attachmentUrl && (
+                                      <button 
+                                        onClick={() => setViewingAttachmentUrl(item.attachmentUrl!)}
+                                        className="shrink-0 p-1 text-zinc-300 hover:text-indigo-500 transition-colors"
+                                      >
+                                        <ImageIcon className="w-3 h-3" />
+                                      </button>
+                                    )}
+                                  </div>
                                   <p className="text-[10px] text-zinc-500 font-mono">{item.date.toDate().toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}</p>
                                 </div>
                               </div>
@@ -1455,7 +1548,18 @@ export default function GroupView({ groupId, user, onBack, theme }: GroupViewPro
                         <span className="text-base sm:text-lg font-bold leading-none text-zinc-900 dark:text-white">{expense.date.toDate().getDate()}</span>
                       </div>
                       <div className="min-w-0">
-                        <p className="font-bold text-zinc-900 dark:text-white group-hover:text-indigo-600 dark:group-hover:text-indigo-400 transition-colors truncate text-sm sm:text-base">{expense.description}</p>
+                        <div className="flex items-center gap-2">
+                          <p className="font-bold text-zinc-900 dark:text-white group-hover:text-indigo-600 dark:group-hover:text-indigo-400 transition-colors truncate text-sm sm:text-base">{expense.description}</p>
+                          {expense.attachmentUrl && (
+                            <button 
+                              onClick={() => setViewingAttachmentUrl(expense.attachmentUrl!)}
+                              className="shrink-0 p-1 text-zinc-300 hover:text-indigo-500 transition-colors"
+                              title="View Receipt"
+                            >
+                              <ImageIcon className="w-3.5 h-3.5" />
+                            </button>
+                          )}
+                        </div>
                         <div className="flex flex-wrap items-center gap-2 mt-0.5">
                           <span className="px-1.5 py-0.5 bg-zinc-100 dark:bg-zinc-800 rounded-md text-[8px] sm:text-[9px] font-bold text-zinc-500 dark:text-zinc-400 uppercase tracking-wider border border-zinc-200 dark:border-zinc-700 shrink-0">{expense.category}</span>
                           {expense.type && expense.type !== 'expense' && (
@@ -1716,6 +1820,52 @@ export default function GroupView({ groupId, user, onBack, theme }: GroupViewPro
                   )}
                 </div>
 
+                <div className="pt-2">
+                  <label className="block text-[10px] font-bold text-zinc-400 uppercase tracking-[0.15em] mb-3">Attachment (Bill/Receipt)</label>
+                  {!attachmentPreview ? (
+                    <label className="flex flex-col items-center justify-center w-full h-32 border-2 border-dashed border-zinc-200 dark:border-zinc-700 rounded-2xl hover:bg-zinc-50 dark:hover:bg-zinc-800/50 transition-all cursor-pointer group">
+                      <div className="flex flex-col items-center justify-center pt-5 pb-6">
+                        <Camera className="w-8 h-8 text-zinc-300 group-hover:text-indigo-500 transition-colors mb-2" />
+                        <p className="text-xs text-zinc-500 font-bold uppercase tracking-widest">Click to upload bill</p>
+                        <p className="text-[9px] text-zinc-400 mt-1">Images only (Max 5MB)</p>
+                      </div>
+                      <input type="file" className="hidden" accept="image/*" onChange={handleFileChange} />
+                    </label>
+                  ) : (
+                    <div className="relative group rounded-2xl overflow-hidden border border-zinc-200 dark:border-zinc-700 aspect-video bg-zinc-100 dark:bg-zinc-800 shadow-inner">
+                      <img src={attachmentPreview} alt="Preview" className="w-full h-full object-cover" />
+                      <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center gap-3">
+                        <button 
+                          type="button"
+                          onClick={() => setViewingAttachmentUrl(attachmentPreview)}
+                          className="p-2 bg-white/20 backdrop-blur-md rounded-full text-white hover:bg-white/40 transition-colors shadow-lg"
+                        >
+                          <Eye className="w-5 h-5" />
+                        </button>
+                        {!isUploading && (
+                          <button 
+                            type="button"
+                            onClick={handleRemoveAttachment}
+                            className="p-2 bg-red-500/20 backdrop-blur-md rounded-full text-red-100 hover:bg-red-500/40 transition-colors shadow-lg"
+                          >
+                            <Trash2 className="w-5 h-5" />
+                          </button>
+                        )}
+                      </div>
+                      {isUploading && uploadProgress !== null && (
+                        <div className="absolute inset-x-0 bottom-0 h-1.5 bg-zinc-900/40 backdrop-blur-sm overflow-hidden">
+                          <motion.div 
+                            className="h-full bg-indigo-500"
+                            initial={{ width: 0 }}
+                            animate={{ width: `${uploadProgress}%` }}
+                            transition={{ ease: "linear" }}
+                          />
+                        </div>
+                      )}
+                    </div>
+                  )}
+                </div>
+
                 {transactionType === 'repayment' && (
                   <div className="flex bg-zinc-100 dark:bg-zinc-800 p-1 rounded-2xl mb-2 mx-1">
                     <button
@@ -1795,9 +1945,17 @@ export default function GroupView({ groupId, user, onBack, theme }: GroupViewPro
                 </div>
                 <button
                   type="submit"
-                  className="w-full py-4 bg-zinc-900 dark:bg-indigo-600 text-white rounded-2xl font-bold hover:bg-zinc-800 dark:hover:bg-indigo-700 transition-all mt-4 shadow-lg shadow-zinc-200 dark:shadow-indigo-500/20 active:scale-95"
+                  disabled={isUploading}
+                  className="w-full py-4 bg-zinc-900 dark:bg-indigo-600 text-white rounded-2xl font-bold hover:bg-zinc-800 dark:hover:bg-indigo-700 transition-all mt-4 shadow-lg shadow-zinc-200 dark:shadow-indigo-500/20 active:scale-95 disabled:opacity-70 disabled:cursor-not-allowed flex items-center justify-center gap-2"
                 >
-                  {editingExpense ? 'Update Transaction' : 'Save Transaction'}
+                  {isUploading ? (
+                    <>
+                      <Loader2 className="w-4 h-4 animate-spin" />
+                      {uploadProgress ? `Uploading ${uploadProgress.toFixed(0)}%` : 'Processing...'}
+                    </>
+                  ) : (
+                    editingExpense ? 'Update Transaction' : 'Save Transaction'
+                  )}
                 </button>
               </form>
             </motion.div>
@@ -2200,6 +2358,55 @@ export default function GroupView({ groupId, user, onBack, theme }: GroupViewPro
                 >
                   Delete
                 </button>
+              </div>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
+
+      {/* Full-screen Attachment Viewer */}
+      <AnimatePresence>
+        {viewingAttachmentUrl && (
+          <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
+            <motion.div 
+              initial={{ opacity: 0 }} 
+              animate={{ opacity: 1 }} 
+              exit={{ opacity: 0 }}
+              onClick={() => setViewingAttachmentUrl(null)}
+              className="absolute inset-0 bg-black/90 backdrop-blur-xl"
+            />
+            <motion.div
+              initial={{ opacity: 0, scale: 0.9, rotate: -2 }}
+              animate={{ opacity: 1, scale: 1, rotate: 0 }}
+              exit={{ opacity: 0, scale: 0.9, rotate: 2 }}
+              className="relative max-w-4xl w-full h-full max-h-[85vh] flex flex-col"
+            >
+              <div className="flex justify-end p-4">
+                <button 
+                  onClick={() => setViewingAttachmentUrl(null)}
+                  className="p-3 bg-white/10 hover:bg-white/20 rounded-full text-white transition-all hover:rotate-90"
+                >
+                  <X className="w-6 h-6" />
+                </button>
+              </div>
+              <div className="flex-1 min-h-0 rounded-3xl overflow-hidden shadow-2xl border border-white/10 ring-1 ring-white/20">
+                <img 
+                  src={viewingAttachmentUrl} 
+                  alt="Attachment" 
+                  className="w-full h-full object-contain bg-black"
+                />
+              </div>
+              <div className="flex justify-center p-6 gap-4">
+                <a
+                  href={viewingAttachmentUrl}
+                  download
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="px-6 py-3 bg-white text-black rounded-2xl font-bold flex items-center gap-2 hover:bg-zinc-200 transition-all active:scale-95 shadow-xl"
+                >
+                  <Download className="w-5 h-5" />
+                  Download
+                </a>
               </div>
             </motion.div>
           </div>
