@@ -34,6 +34,7 @@ export interface GroupMember {
 }
 
 export type RecurrenceFrequency = 'daily' | 'weekly' | 'monthly' | 'yearly';
+export type TransactionType = 'expense' | 'borrowed' | 'lent' | 'repayment';
 
 export interface Expense {
   id: string;
@@ -48,6 +49,8 @@ export interface Expense {
   frequency?: RecurrenceFrequency;
   endDate?: Timestamp;
   recurringTemplateId?: string;
+  type?: TransactionType;
+  relatedParty?: string;
 }
 
 export const CATEGORIES = [
