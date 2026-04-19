@@ -108,6 +108,7 @@ export default function GroupView({ groupId, user, onBack, theme }: GroupViewPro
   const [selectedStatDetails, setSelectedStatDetails] = useState<{ title: string; amount: number; subtitle?: string } | null>(null);
   const [selectedLedgerPerson, setSelectedLedgerPerson] = useState<string | null>(null);
   const [ledgerViewMode, setLedgerViewMode] = useState<'lent' | 'borrowed' | null>(null);
+  const [isPersonDropdownOpen, setIsPersonDropdownOpen] = useState(false);
   const [expenseSearchTerm, setExpenseSearchTerm] = useState('');
 
   const statModalRef = useRef<HTMLDivElement>(null);
@@ -246,6 +247,7 @@ export default function GroupView({ groupId, user, onBack, theme }: GroupViewPro
         setExpenseToDelete(null);
         setEditingExpense(null);
         setSelectedStatDetails(null);
+        setIsPersonDropdownOpen(false);
       }
     };
     window.addEventListener('keydown', handleKeyDown);
@@ -358,6 +360,7 @@ export default function GroupView({ groupId, user, onBack, theme }: GroupViewPro
       setEditingExpense(null);
       setAmount('');
       setDescription('');
+      setIsPersonDropdownOpen(false);
     } catch (error) {
       handleFirestoreError(error, editingExpense ? OperationType.UPDATE : OperationType.CREATE, `groups/${groupId}/expenses`);
     }
@@ -1057,8 +1060,8 @@ export default function GroupView({ groupId, user, onBack, theme }: GroupViewPro
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
               {personLedger
                 .filter(p => {
-                  if (ledgerViewMode === 'lent') return p.net > 0;
-                  if (ledgerViewMode === 'borrowed') return p.net < 0;
+                  if (ledgerViewMode === 'lent') return p.lent > 0;
+                  if (ledgerViewMode === 'borrowed') return p.borrowed > 0;
                   return false;
                 })
                 .map(person => (
@@ -1646,22 +1649,69 @@ export default function GroupView({ groupId, user, onBack, theme }: GroupViewPro
                     </select>
                   </div>
                   {transactionType !== 'expense' && (
-                    <div>
+                    <div className="relative">
                       <label className="block text-[10px] font-bold text-zinc-400 uppercase tracking-[0.15em] mb-2">Person Name</label>
                       <input
                         type="text"
-                        list="people-list"
                         value={relatedParty}
-                        onChange={(e) => setRelatedParty(e.target.value)}
+                        onChange={(e) => {
+                          setRelatedParty(e.target.value);
+                          setIsPersonDropdownOpen(true);
+                        }}
+                        onFocus={() => setIsPersonDropdownOpen(true)}
                         className="w-full px-5 py-4 bg-zinc-50 dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 rounded-2xl focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all font-medium dark:text-white"
-                        placeholder="Who?"
+                        placeholder="Type to search or select..."
                         required
                       />
-                      <datalist id="people-list">
-                        {Array.from(new Set(expenses.map(e => e.relatedParty).filter(Boolean))).map(name => (
-                          <option key={name} value={name || ''} />
-                        ))}
-                      </datalist>
+                      
+                      <AnimatePresence>
+                        {isPersonDropdownOpen && (
+                          <>
+                            <div 
+                              className="fixed inset-0 z-[60]" 
+                              onClick={() => setIsPersonDropdownOpen(false)}
+                            />
+                            <motion.div
+                              initial={{ opacity: 0, y: -10 }}
+                              animate={{ opacity: 1, y: 0 }}
+                              exit={{ opacity: 0, y: -10 }}
+                              className="absolute left-0 right-0 top-full mt-2 bg-white dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 rounded-2xl shadow-2xl z-[70] max-h-48 overflow-y-auto custom-scrollbar p-2"
+                            >
+                              <div className="px-3 py-2 text-[8px] font-bold text-zinc-400 uppercase tracking-widest border-b border-zinc-100 dark:border-zinc-700 mb-1">
+                                Suggestions
+                              </div>
+                              {[...members.map(m => m.displayName), ...Array.from(new Set(expenses.map(e => e.relatedParty).filter(Boolean)))]
+                                .filter(name => name?.toLowerCase().includes(relatedParty.toLowerCase()))
+                                .slice(0, 10)
+                                .map((name, idx) => (
+                                  <button
+                                    key={`${name}-${idx}`}
+                                    type="button"
+                                    onClick={() => {
+                                      setRelatedParty(name || '');
+                                      setIsPersonDropdownOpen(false);
+                                    }}
+                                    className="w-full text-left px-4 py-3 hover:bg-zinc-50 dark:hover:bg-zinc-700/50 rounded-xl text-sm font-medium text-zinc-700 dark:text-zinc-200 transition-colors"
+                                  >
+                                    {name}
+                                  </button>
+                                ))}
+                              {relatedParty.trim() && ![...members.map(m => m.displayName), ...Array.from(new Set(expenses.map(e => e.relatedParty).filter(Boolean)))].some(n => n?.toLowerCase() === relatedParty.toLowerCase()) && (
+                                <button
+                                  type="button"
+                                  onClick={() => setIsPersonDropdownOpen(false)}
+                                  className="w-full text-left px-4 py-3 hover:bg-zinc-50 dark:hover:bg-zinc-700/50 rounded-xl text-sm font-bold text-indigo-600 dark:text-indigo-400 transition-colors"
+                                >
+                                  Use "{relatedParty}" as new person
+                                </button>
+                              )}
+                              {[...members.map(m => m.displayName), ...Array.from(new Set(expenses.map(e => e.relatedParty).filter(Boolean)))].length === 0 && (
+                                <p className="px-4 py-3 text-xs text-zinc-500 italic">No suggestions yet</p>
+                              )}
+                            </motion.div>
+                          </>
+                        )}
+                      </AnimatePresence>
                     </div>
                   )}
                 </div>
