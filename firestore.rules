@@ -12,7 +12,9 @@ service cloud.firestore {
     // ===============================================================
     // HELPERS
     // ===============================================================
-    function isAuthenticated() { return request.auth != null; }
+    function isAuthenticated() { 
+      return request.auth != null && request.auth.token.email_verified == true; 
+    }
     function isOwner(userId) { return isAuthenticated() && request.auth.uid == userId; }
     function incoming() { return request.resource.data; }
     function existing() { return resource.data; }
@@ -59,9 +61,10 @@ service cloud.firestore {
     function isValidExpense(data, groupId) {
       let groupData = get(/databases/$(database)/documents/groups/$(groupId)).data;
       let isMember = data.paidBy in groupData.memberIds;
-      let isExternal = data.paidBy.matches('^external_person_.*');
+      let isExternal = data.paidBy is string && data.paidBy.matches('^external_person_.*');
       
       return data.keys().hasAll(['amount', 'description', 'paidBy', 'date', 'category', 'createdAt']) &&
+             data.keys().size() <= 14 &&
              data.amount is number && data.amount > 0 &&
              data.description is string && data.description.size() >= 1 && data.description.size() <= 200 &&
              data.category is string && data.category.size() <= 50 &&
@@ -74,7 +77,8 @@ service cloud.firestore {
              (data.get('isRecurring', null) == null || data.isRecurring is bool) &&
              (data.get('frequency', null) == null || data.frequency in ['daily', 'weekly', 'monthly', 'yearly']) &&
              (data.get('endDate', null) == null || data.endDate is timestamp) &&
-             (data.get('recurringTemplateId', null) == null || (data.recurringTemplateId is string && data.recurringTemplateId.size() <= 128));
+             (data.get('recurringTemplateId', null) == null || (data.recurringTemplateId is string && data.recurringTemplateId.size() <= 128)) &&
+             (data.get('attachmentUrl', null) == null || (data.attachmentUrl is string && data.attachmentUrl.size() <= 200000));
     }
 
     function isValidGroupMember(data, targetUserId) {
