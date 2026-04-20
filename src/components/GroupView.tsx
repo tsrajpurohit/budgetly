@@ -65,7 +65,7 @@ import {
 } from 'firebase/firestore';
 import { 
   ref, 
-  uploadBytesResumable, 
+  uploadBytes, 
   getDownloadURL 
 } from 'firebase/storage';
 import { User } from 'firebase/auth';
@@ -101,6 +101,7 @@ export default function GroupView({ groupId, user, onBack, theme }: GroupViewPro
   const [relatedParty, setRelatedParty] = useState('');
   const [isPayorMe, setIsPayorMe] = useState(true);
   const [newMemberEmail, setNewMemberEmail] = useState('');
+  const [isCompressing, setIsCompressing] = useState(false);
   
   // Settings states
   const [editName, setEditName] = useState('');
@@ -359,19 +360,89 @@ export default function GroupView({ groupId, user, onBack, theme }: GroupViewPro
     setAttachmentPreview(null);
   };
 
-  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const compressImage = (file: File): Promise<Blob> => {
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.readAsDataURL(file);
+      reader.onload = (event) => {
+        const img = new Image();
+        img.src = event.target?.result as string;
+        img.onload = () => {
+          const canvas = document.createElement('canvas');
+          let width = img.width;
+          let height = img.height;
+
+          // Max dimensions
+          const MAX_WIDTH = 1000;
+          const MAX_HEIGHT = 1000;
+
+          if (width > height) {
+            if (width > MAX_WIDTH) {
+              height *= MAX_WIDTH / width;
+              width = MAX_WIDTH;
+            }
+          } else {
+            if (height > MAX_HEIGHT) {
+              width *= MAX_HEIGHT / height;
+              height = MAX_HEIGHT;
+            }
+          }
+
+          canvas.width = width;
+          canvas.height = height;
+
+          const ctx = canvas.getContext('2d');
+          ctx?.drawImage(img, 0, 0, width, height);
+
+          canvas.toBlob(
+            (blob) => {
+              if (blob) {
+                resolve(blob);
+              } else {
+                reject(new Error('Canvas to Blob conversion failed'));
+              }
+            },
+            'image/jpeg',
+            0.6 // quality
+          );
+        };
+        img.onerror = () => reject(new Error('Image load failed'));
+      };
+      reader.onerror = () => reject(new Error('File reader failed'));
+    });
+  };
+
+  const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (file) {
-      if (file.size > 5 * 1024 * 1024) {
-        alert('File size must be less than 5MB');
-        return;
+      setIsCompressing(true);
+      try {
+        // Even for small files, we compress to normalize format and reduce overhead
+        const compressedBlob = await compressImage(file);
+        
+        // Create a new File object from the blob so we can still use .name etc
+        const compressedFile = new File([compressedBlob], file.name.replace(/\.[^/.]+$/, "") + ".jpg", {
+          type: "image/jpeg"
+        });
+
+        setAttachment(compressedFile);
+        const reader = new FileReader();
+        reader.onloadend = () => {
+          setAttachmentPreview(reader.result as string);
+        };
+        reader.readAsDataURL(compressedBlob);
+      } catch (err) {
+        console.error("Compression component error:", err);
+        // Fallback to original file if compression fails for some reason
+        setAttachment(file);
+        const reader = new FileReader();
+        reader.onloadend = () => {
+          setAttachmentPreview(reader.result as string);
+        };
+        reader.readAsDataURL(file);
+      } finally {
+        setIsCompressing(false);
       }
-      setAttachment(file);
-      const reader = new FileReader();
-      reader.onloadend = () => {
-        setAttachmentPreview(reader.result as string);
-      };
-      reader.readAsDataURL(file);
     }
   };
 
@@ -381,36 +452,73 @@ export default function GroupView({ groupId, user, onBack, theme }: GroupViewPro
 
     try {
       setIsUploading(true);
+      setUploadProgress(0); // Start progress at 0
       let finalAttachmentUrl = editingExpense?.attachmentUrl || null;
 
       // If we have a new attachment, upload it
       if (attachment) {
-        const fileExt = attachment.name.split('.').pop();
-        const fileName = `${Date.now()}_${Math.random().toString(36).substring(7)}.${fileExt}`;
-        const storageRef = ref(storage, `attachments/${groupId}/${fileName}`);
-        const uploadTask = uploadBytesResumable(storageRef, attachment);
-
-        finalAttachmentUrl = await new Promise((resolve, reject) => {
-          uploadTask.on(
-            'state_changed',
-            (snapshot) => {
-              const progress = (snapshot.bytesTransferred / snapshot.totalBytes) * 100;
-              setUploadProgress(progress);
-            },
-            (error) => {
-              console.error("Upload error:", error);
-              reject(error);
-            },
-            async () => {
-              const downloadURL = await getDownloadURL(uploadTask.snapshot.ref);
-              resolve(downloadURL);
-            }
+        try {
+          const fileExt = attachment.name.split('.').pop();
+          const fileName = `${Date.now()}_${Math.random().toString(36).substring(7)}.${fileExt}`;
+          const storageRef = ref(storage, `attachments/${groupId}/${fileName}`);
+          
+          console.log(`Phase 1: Starting upload. File: ${attachment.name}, Size: ${attachment.size} bytes`);
+          
+          setUploadProgress(20); 
+          
+          const uploadPromise = uploadBytes(storageRef, attachment);
+          // Reduced timeout to 30 seconds for faster failure feedback
+          const timeoutPromise = new Promise((_, reject) => 
+            setTimeout(() => reject(new Error('Storage service is not responding. (Timeout after 30s)')), 30000)
           );
-        });
+
+          console.log("Phase 2: Awaiting storage response (uploadBytes)...");
+          try {
+            const snapshot = await Promise.race([uploadPromise, timeoutPromise]) as any;
+            
+            setUploadProgress(80);
+            console.log("Phase 3: Upload complete, getting download URL...");
+            finalAttachmentUrl = await getDownloadURL(snapshot.ref);
+            console.log("Phase 4: URL obtained:", finalAttachmentUrl);
+          } catch (uploadError: any) {
+            console.warn("Storage upload failed, attempting automatic Base64 fallback:", uploadError);
+            
+            // If the image is small enough (which it should be after compression), 
+            // we store it as a Data URI directly in Firestore to bypass storage blocks.
+            if (attachment.size < 100000) { // 100KB limit for inline storage
+              console.log("Phase 3 (Fallback): Converting to Data URI...");
+              const dataUri = await new Promise<string>((resolve) => {
+                const reader = new FileReader();
+                reader.onloadend = () => resolve(reader.result as string);
+                reader.readAsDataURL(attachment);
+              });
+              finalAttachmentUrl = dataUri;
+              console.log("Phase 4 (Fallback): Data URI obtained (size: " + dataUri.length + ")");
+            } else {
+              const proceed = confirm(`The image could not be uploaded (${uploadError.message}). Would you like to save the transaction without the image?`);
+              if (!proceed) {
+                setIsUploading(false);
+                setUploadProgress(null);
+                return; // Stop execution if user cancels
+              }
+              finalAttachmentUrl = null; // Proceed without image
+            }
+          }
+          
+          setUploadProgress(null); 
+        } catch (error: any) {
+          console.error("General error during upload phase:", error);
+          setIsUploading(false);
+          setUploadProgress(null);
+          alert(`Failed to process image: ${error.message}`);
+          return; 
+        }
       } else if (!attachmentPreview) {
         // If preview was cleared, remove the URL
         finalAttachmentUrl = null;
       }
+
+      console.log("Starting database transaction...");
 
       const expenseData: any = {
         amount: parseFloat(amount),
@@ -429,10 +537,14 @@ export default function GroupView({ groupId, user, onBack, theme }: GroupViewPro
       };
 
       if (editingExpense) {
+        console.log("Updating existing document...");
         await updateDoc(doc(db, 'groups', groupId, 'expenses', editingExpense.id), expenseData);
       } else {
+        console.log("Creating new document...");
         await addDoc(collection(db, 'groups', groupId, 'expenses'), expenseData);
       }
+      
+      console.log("Transaction saved successfully.");
       
       setIsAddExpenseOpen(false);
       setEditingExpense(null);
@@ -444,8 +556,19 @@ export default function GroupView({ groupId, user, onBack, theme }: GroupViewPro
       setUploadProgress(null);
       setIsUploading(false);
     } catch (error) {
-      handleFirestoreError(error, editingExpense ? OperationType.UPDATE : OperationType.CREATE, `groups/${groupId}/expenses`);
+      console.error("Final expense error:", error);
       setIsUploading(false);
+      setUploadProgress(null);
+      
+      // Extract a readable error message from handleFirestoreError if possible or use generic
+      const errorMessage = error instanceof Error ? error.message : "An unexpected error occurred while saving.";
+      alert(`Save failed: ${errorMessage.includes('{') ? 'Permission denied or invalid data format.' : errorMessage}`);
+      
+      try {
+        handleFirestoreError(error, editingExpense ? OperationType.UPDATE : OperationType.CREATE, `groups/${groupId}/expenses`);
+      } catch (e) {
+        // Error already logged and thrown
+      }
     }
   };
 
@@ -1671,6 +1794,113 @@ export default function GroupView({ groupId, user, onBack, theme }: GroupViewPro
         </div>
       </div>
 
+      {/* Budget Overview Section */}
+      <section className="bg-white dark:bg-zinc-900 p-8 sm:p-10 rounded-[44px] border border-zinc-200 dark:border-zinc-800 shadow-2xl shadow-zinc-200/50 dark:shadow-black/30 mb-12 overflow-hidden relative">
+        <div className="absolute top-0 right-0 w-64 h-64 bg-indigo-500/5 rounded-full -mr-32 -mt-32 blur-3xl pointer-events-none" />
+        
+        <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-8 relative">
+          <div className="flex-1 w-full">
+            <h2 className="text-sm font-bold text-zinc-400 uppercase tracking-[0.2em] mb-6 flex items-center gap-2.5">
+              <BarChart3 className="w-4 h-4 text-indigo-500" />
+              Budget Controls ({group.budgetType || 'Monthly'})
+            </h2>
+            
+            {!group.maxBudget ? (
+              <div className="bg-zinc-50 dark:bg-zinc-800/50 p-8 rounded-[32px] border border-dashed border-zinc-200 dark:border-zinc-700 text-center">
+                <p className="text-zinc-500 dark:text-zinc-400 text-sm font-medium mb-4 italic">No budget limit set for this period.</p>
+                <button 
+                  onClick={() => setIsSettingsOpen(true)}
+                  className="px-6 py-2.5 bg-zinc-900 dark:bg-indigo-600 text-white rounded-xl text-xs font-bold hover:bg-zinc-800 dark:hover:bg-indigo-700 transition-all shadow-lg active:scale-95"
+                >
+                  Set Budget Limit
+                </button>
+              </div>
+            ) : (
+              <div className="space-y-10">
+                <div>
+                  <div className="flex justify-between items-end mb-4">
+                    <div>
+                      <p className="text-3xl sm:text-4xl font-bold text-zinc-900 dark:text-white font-display">
+                        ₹{formatCurrency(totalSpent)}
+                        <span className="text-sm text-zinc-400 ml-2 font-medium tracking-normal">/ ₹{formatCurrency(group.maxBudget)}</span>
+                      </p>
+                      <p className="text-[10px] font-bold text-zinc-500 uppercase tracking-[0.1em] mt-1.5 flex items-center gap-1.5">
+                        <Calendar className="w-3 h-3" />
+                        Remaining: ₹{formatCurrency(Math.max(0, group.maxBudget - totalSpent))}
+                      </p>
+                    </div>
+                    <div className="text-right">
+                      <span className={`text-2xl font-bold font-display ${totalSpent > group.maxBudget ? 'text-red-500' : 'text-indigo-600 dark:text-indigo-400'}`}>
+                        {((totalSpent / group.maxBudget) * 100).toFixed(0)}%
+                      </span>
+                      <p className="text-[10px] font-bold text-zinc-500 uppercase tracking-widest mt-1">Utilization</p>
+                    </div>
+                  </div>
+                  
+                  <div className="h-4 bg-zinc-100 dark:bg-zinc-800 rounded-full overflow-hidden shadow-inner p-1">
+                    <motion.div 
+                      className={`h-full rounded-full ${totalSpent > group.maxBudget ? 'bg-gradient-to-r from-red-500 to-rose-600' : 'bg-gradient-to-r from-indigo-500 to-violet-600'} shadow-lg`}
+                      initial={{ width: 0 }}
+                      animate={{ width: `${Math.min(100, (totalSpent / group.maxBudget) * 100)}%` }}
+                      transition={{ duration: 1.2, ease: "easeOut" }}
+                    />
+                  </div>
+                  
+                  {totalSpent > group.maxBudget && (
+                    <motion.div 
+                      initial={{ opacity: 0, y: 10 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      className="mt-4 flex items-center gap-2 text-red-600 dark:text-red-400 text-xs font-bold"
+                    >
+                      <ArrowUpRight className="w-4 h-4" />
+                      Over budget by ₹{formatCurrency(totalSpent - group.maxBudget)}
+                    </motion.div>
+                  )}
+                </div>
+              </div>
+            )}
+          </div>
+
+          {pieData.length > 0 && (
+            <div className="w-full md:w-64 flex flex-col items-center">
+              <h4 className="text-[10px] font-bold text-zinc-400 uppercase tracking-widest mb-4">Category Mix</h4>
+              <div className="h-48 w-48 relative">
+                <ResponsiveContainer width="100%" height="100%">
+                  <PieChart>
+                    <Pie
+                      data={pieData}
+                      cx="50%"
+                      cy="50%"
+                      innerRadius={45}
+                      outerRadius={65}
+                      paddingAngle={5}
+                      dataKey="value"
+                    >
+                      {pieData.map((entry, index) => (
+                        <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} strokeWidth={0} />
+                      ))}
+                    </Pie>
+                    <Tooltip 
+                      formatter={(value: number) => [`₹${formatCurrency(value)}`, 'Total']}
+                      contentStyle={{ 
+                        borderRadius: '12px', 
+                        border: 'none', 
+                        boxShadow: '0 10px 15px -3px rgba(0,0,0,0.1)', 
+                        padding: '8px', 
+                        fontSize: '11px'
+                      }}
+                    />
+                  </PieChart>
+                </ResponsiveContainer>
+                <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none">
+                  <PieChartIcon className="w-5 h-5 text-zinc-300 dark:text-zinc-600" />
+                </div>
+              </div>
+            </div>
+          )}
+        </div>
+      </section>
+
       {/* Add Expense Modal */}
       <AnimatePresence>
         {isAddExpenseOpen && (
@@ -1971,13 +2201,20 @@ export default function GroupView({ groupId, user, onBack, theme }: GroupViewPro
                 </div>
                 <button
                   type="submit"
-                  disabled={isUploading}
+                  disabled={isUploading || isCompressing}
                   className="w-full py-4 bg-zinc-900 dark:bg-indigo-600 text-white rounded-2xl font-bold hover:bg-zinc-800 dark:hover:bg-indigo-700 transition-all mt-4 shadow-lg shadow-zinc-200 dark:shadow-indigo-500/20 active:scale-95 disabled:opacity-70 disabled:cursor-not-allowed flex items-center justify-center gap-2"
                 >
                   {isUploading ? (
                     <>
                       <Loader2 className="w-4 h-4 animate-spin" />
-                      {uploadProgress ? `Uploading ${uploadProgress.toFixed(0)}%` : 'Processing...'}
+                      {uploadProgress !== null 
+                        ? (uploadProgress > 0 ? `Uploading ${uploadProgress.toFixed(0)}%` : 'Starting upload...') 
+                        : 'Processing...'}
+                    </>
+                  ) : isCompressing ? (
+                    <>
+                      <Loader2 className="w-4 h-4 animate-spin" />
+                      Preparing Image...
                     </>
                   ) : (
                     editingExpense ? 'Update Transaction' : 'Save Transaction'
