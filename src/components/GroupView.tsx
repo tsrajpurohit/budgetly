@@ -10,6 +10,7 @@ import {
   MoreVertical, 
   Trash2, 
   UserPlus,
+  UserMinus,
   TrendingUp,
   PieChart as PieChartIcon,
   Calendar,
@@ -64,6 +65,7 @@ import {
   where,
   updateDoc,
   arrayUnion,
+  arrayRemove,
   deleteField
 } from 'firebase/firestore';
 import { 
@@ -152,6 +154,9 @@ export default function GroupView({ groupId, user, onBack, theme }: GroupViewPro
   // Delete confirmation state
   const [expenseToDelete, setExpenseToDelete] = useState<string | null>(null);
   const [isDeleteGroupConfirmOpen, setIsDeleteGroupConfirmOpen] = useState(false);
+  const [isManageMembersOpen, setIsManageMembersOpen] = useState(false);
+  const [selectedTrendPeriod, setSelectedTrendPeriod] = useState<string | null>(null);
+  const [removingMemberUid, setRemovingMemberUid] = useState<string | null>(null);
 
   useEffect(() => {
     if (selectedStatDetails && statModalRef.current) {
@@ -668,6 +673,56 @@ export default function GroupView({ groupId, user, onBack, theme }: GroupViewPro
     }
   };
 
+  const handleRemoveMember = async (memberUid: string) => {
+    if (!groupId || !group) return;
+    
+    // Check permissions
+    const isOwnerOfGroup = group.createdBy === user.uid;
+    const isRemovingSelf = memberUid === user.uid;
+    
+    if (!isOwnerOfGroup && !isRemovingSelf) {
+      alert("Only the group creator can remove members from the group.");
+      return;
+    }
+    
+    if (isOwnerOfGroup && isRemovingSelf) {
+      alert("As the group creator, you cannot leave the group. You must delete the group in Settings instead.");
+      return;
+    }
+    
+    const confirmMsg = isRemovingSelf 
+      ? "Are you sure you want to leave this group?" 
+      : "Are you sure you want to remove this member from the group?";
+      
+    if (!confirm(confirmMsg)) return;
+    
+    setRemovingMemberUid(memberUid);
+    try {
+      // 1. Remove from group's memberIds array
+      console.log(`Removing member UID ${memberUid} from group memberIds`);
+      await updateDoc(doc(db, 'groups', groupId), {
+        memberIds: arrayRemove(memberUid)
+      });
+      
+      // 2. Delete member document from subcollection
+      console.log(`Deleting members subcollection path: groups/${groupId}/members/${memberUid}`);
+      await deleteDoc(doc(db, 'groups', groupId, 'members', memberUid));
+      
+      console.log(`Member UID ${memberUid} removed successfully.`);
+      
+      // If removing self, redirect back
+      if (isRemovingSelf) {
+        setIsManageMembersOpen(false);
+        onBack();
+      }
+    } catch (error: any) {
+      console.error("Error removing member:", error);
+      alert(`Failed to remove member: ${error.message || error}`);
+    } finally {
+      setRemovingMemberUid(null);
+    }
+  };
+
   const handleDeleteExpense = async (id: string) => {
     try {
       await deleteDoc(doc(db, 'groups', groupId, 'expenses', id));
@@ -855,6 +910,7 @@ export default function GroupView({ groupId, user, onBack, theme }: GroupViewPro
     const now = new Date();
     const currentYear = now.getFullYear();
     const data = [];
+    const limit = group.maxBudget || 0;
     
     if (group.budgetType === 'weekly') {
       const firstDayOfYear = new Date(currentYear, 0, 1);
@@ -878,9 +934,28 @@ export default function GroupView({ groupId, user, onBack, theme }: GroupViewPro
           })
           .reduce((sum, e) => sum + e.amount, 0);
         
+        let withinBudget = weekSpent;
+        let exceeded = 0;
+        let saving = 0;
+
+        if (limit > 0) {
+          if (weekSpent > limit) {
+            withinBudget = limit;
+            exceeded = weekSpent - limit;
+            saving = 0;
+          } else {
+            withinBudget = weekSpent;
+            exceeded = 0;
+            saving = limit - weekSpent;
+          }
+        }
+
         data.push({ 
           name: `W${i + 1}`, 
-          amount: weekSpent 
+          amount: weekSpent,
+          withinBudget,
+          saving,
+          exceeded
         });
       }
     } else if (group.budgetType === 'monthly') {
@@ -894,7 +969,30 @@ export default function GroupView({ groupId, user, onBack, theme }: GroupViewPro
             return ed.getMonth() === i && ed.getFullYear() === currentYear && (!e.type || e.type === 'expense');
           })
           .reduce((sum, e) => sum + e.amount, 0);
-        data.push({ name: monthNames[i], amount: monthSpent });
+
+        let withinBudget = monthSpent;
+        let exceeded = 0;
+        let saving = 0;
+
+        if (limit > 0) {
+          if (monthSpent > limit) {
+            withinBudget = limit;
+            exceeded = monthSpent - limit;
+            saving = 0;
+          } else {
+            withinBudget = monthSpent;
+            exceeded = 0;
+            saving = limit - monthSpent;
+          }
+        }
+
+        data.push({ 
+          name: monthNames[i], 
+          amount: monthSpent,
+          withinBudget,
+          saving,
+          exceeded
+        });
       }
     }
     return data;
@@ -927,6 +1025,39 @@ export default function GroupView({ groupId, user, onBack, theme }: GroupViewPro
       name: m.displayName || 'Anonymous',
       amount: contributionMap.get(m.uid) || 0
     }));
+  };
+
+  const getTrendMonthExpenses = (periodName: string) => {
+    if (!group) return [];
+    const currentYear = new Date().getFullYear();
+    const monthNames = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+    const monthIndex = monthNames.indexOf(periodName);
+    
+    if (monthIndex === -1) {
+      if (periodName.startsWith('W')) {
+        const weekNum = parseInt(periodName.substring(1), 10) - 1;
+        const firstDayOfYear = new Date(currentYear, 0, 1);
+        const startOfFirstWeek = new Date(firstDayOfYear);
+        startOfFirstWeek.setDate(firstDayOfYear.getDate() - firstDayOfYear.getDay());
+        startOfFirstWeek.setHours(0, 0, 0, 0);
+        
+        const weekStart = new Date(startOfFirstWeek);
+        weekStart.setDate(startOfFirstWeek.getDate() + (weekNum * 7));
+        const weekEnd = new Date(weekStart);
+        weekEnd.setDate(weekStart.getDate() + 7);
+        
+        return expenses.filter(e => {
+          const ed = e.date.toDate();
+          return ed >= weekStart && ed < weekEnd && ed.getFullYear() === currentYear && (!e.type || e.type === 'expense');
+        });
+      }
+      return [];
+    }
+    
+    return expenses.filter(e => {
+      const ed = e.date.toDate();
+      return ed.getMonth() === monthIndex && ed.getFullYear() === currentYear && (!e.type || e.type === 'expense');
+    });
   };
 
   const lineData = getLineChartData();
@@ -1484,15 +1615,22 @@ export default function GroupView({ groupId, user, onBack, theme }: GroupViewPro
             </h3>
             <div className="h-[280px] w-full">
               <ResponsiveContainer width="100%" height="100%" minWidth={0} minHeight={0}>
-                <LineChart data={lineData} margin={{ top: 5, right: 5, left: -20, bottom: 5 }}>
+                <BarChart 
+                  data={lineData} 
+                  margin={{ top: 5, right: 5, left: -20, bottom: 5 }}
+                  onClick={(data) => {
+                    if (data && data.activeLabel) {
+                      const labelStr = String(data.activeLabel);
+                      setSelectedTrendPeriod(selectedTrendPeriod === labelStr ? null : labelStr);
+                    }
+                  }}
+                >
                   <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f4f4f5" opacity={0.1} />
                   <XAxis 
                     dataKey="name" 
                     axisLine={false} 
                     tickLine={false} 
                     tick={{ fontSize: 10, fill: '#a1a1aa', fontWeight: 500 }}
-                    interval="preserveStart"
-                    minTickGap={10}
                   />
                   <YAxis 
                     axisLine={false} 
@@ -1513,15 +1651,23 @@ export default function GroupView({ groupId, user, onBack, theme }: GroupViewPro
                     labelStyle={{ fontSize: '10px', color: '#71717a', marginBottom: '4px', textTransform: 'uppercase', fontWeight: 700 }}
                     formatter={(value: number) => [`₹${formatCurrency(value)}`, 'Spent']}
                   />
-                  <Line 
-                    type="monotone" 
+                  <Bar 
                     dataKey="amount" 
-                    stroke="#4f46e5" 
-                    strokeWidth={4} 
-                    dot={{ r: 0 }}
-                    activeDot={{ r: 6, fill: '#4f46e5', strokeWidth: 3, stroke: '#fff' }}
-                  />
-                </LineChart>
+                    radius={[8, 8, 0, 0]}
+                    className="cursor-pointer"
+                  >
+                    {lineData.map((entry, index) => {
+                      const isSelected = selectedTrendPeriod === entry.name;
+                      return (
+                        <Cell 
+                          key={`cell-${index}`} 
+                          fill={isSelected ? '#6366f1' : '#4f46e5'} 
+                          opacity={selectedTrendPeriod && !isSelected ? 0.35 : 1}
+                        />
+                      );
+                    })}
+                  </Bar>
+                </BarChart>
               </ResponsiveContainer>
             </div>
           </div>
@@ -1628,6 +1774,94 @@ export default function GroupView({ groupId, user, onBack, theme }: GroupViewPro
           </div>
         </div>
       </div>
+
+      {/* Trend Period Detail Section (Monthly/Weekly spending breakout) */}
+      <AnimatePresence>
+        {selectedTrendPeriod && (
+          <motion.div
+            initial={{ opacity: 0, height: 0 }}
+            animate={{ opacity: 1, height: 'auto' }}
+            exit={{ opacity: 0, height: 0 }}
+            className="bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-[44px] p-6 sm:p-10 shadow-2xl shadow-zinc-200/50 dark:shadow-black/20 mb-12 relative overflow-hidden"
+          >
+            <div className="absolute top-0 right-0 w-64 h-64 bg-indigo-500/5 rounded-full -mr-32 -mt-32 blur-3xl pointer-events-none" />
+            
+            <div className="flex items-center justify-between mb-8 pb-5 border-b border-zinc-100 dark:border-zinc-800 relative z-10">
+              <div>
+                <span className="text-[10px] font-bold text-indigo-500 dark:text-indigo-400 uppercase tracking-[0.2em]">Focused Period Breakdown</span>
+                <h4 className="text-2xl font-bold text-zinc-900 dark:text-white font-display mt-1">
+                  Spending details for {selectedTrendPeriod}
+                </h4>
+              </div>
+              <button 
+                onClick={() => setSelectedTrendPeriod(null)}
+                className="p-2.5 bg-zinc-50 dark:bg-zinc-800 hover:bg-zinc-100 dark:hover:bg-zinc-700 text-zinc-400 hover:text-zinc-650 dark:hover:text-white rounded-full transition-colors active:scale-95 shadow-sm border border-zinc-100 dark:border-zinc-700/50"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8 relative z-10">
+              <div className="bg-zinc-50/50 dark:bg-zinc-800/10 p-6 rounded-3xl border border-zinc-150/40 dark:border-zinc-800/60 shadow-inner">
+                <p className="text-[10px] font-bold text-zinc-400 dark:text-zinc-500 uppercase tracking-widest">Total Period Spending</p>
+                <p className="text-3xl font-black text-indigo-600 dark:text-indigo-400 mt-2 font-display">
+                  ₹{formatCurrency(getTrendMonthExpenses(selectedTrendPeriod).reduce((sum, e) => sum + e.amount, 0))}
+                </p>
+              </div>
+              <div className="bg-zinc-50/50 dark:bg-zinc-800/10 p-6 rounded-3xl border border-zinc-150/40 dark:border-zinc-800/60 shadow-inner">
+                <p className="text-[10px] font-bold text-zinc-400 dark:text-zinc-500 uppercase tracking-widest">Average Transaction</p>
+                <p className="text-3xl font-black text-zinc-800 dark:text-zinc-200 mt-2 font-display">
+                  ₹{formatCurrency(
+                    getTrendMonthExpenses(selectedTrendPeriod).length > 0
+                      ? getTrendMonthExpenses(selectedTrendPeriod).reduce((sum, e) => sum + e.amount, 0) / getTrendMonthExpenses(selectedTrendPeriod).length
+                      : 0
+                  )}
+                </p>
+              </div>
+              <div className="bg-zinc-50/50 dark:bg-zinc-800/10 p-6 rounded-3xl border border-zinc-150/40 dark:border-zinc-800/60 shadow-inner">
+                <p className="text-[10px] font-bold text-zinc-400 dark:text-zinc-500 uppercase tracking-widest">Transactions Count</p>
+                <p className="text-3xl font-black text-zinc-800 dark:text-zinc-200 mt-2 font-display">
+                  {getTrendMonthExpenses(selectedTrendPeriod).length}
+                </p>
+              </div>
+            </div>
+
+            <h5 className="text-[11px] font-bold text-zinc-400 dark:text-zinc-500 uppercase tracking-widest mb-4 relative z-10">Transaction History ({selectedTrendPeriod})</h5>
+            <div className="max-h-[380px] overflow-y-auto pr-2 space-y-3 custom-scrollbar relative z-10">
+              {getTrendMonthExpenses(selectedTrendPeriod).length === 0 ? (
+                <p className="text-zinc-400 dark:text-zinc-500 italic text-sm py-8 text-center bg-zinc-50/30 dark:bg-zinc-800/5 rounded-3xl border border-dashed border-zinc-100 dark:border-zinc-800">No transactions recorded for this period.</p>
+              ) : (
+                getTrendMonthExpenses(selectedTrendPeriod).map((expense) => (
+                  <div 
+                    key={expense.id} 
+                    className="flex items-center justify-between p-4 bg-zinc-50/30 dark:bg-zinc-800/10 rounded-2xl border border-zinc-100/50 dark:border-zinc-800/40 hover:bg-zinc-100/40 dark:hover:bg-zinc-800/20 transition-all duration-350 hover:shadow-md"
+                  >
+                    <div className="flex items-center gap-4 min-w-0">
+                      <div className="w-10 h-10 bg-indigo-50 dark:bg-indigo-950/40 text-indigo-600 dark:text-indigo-400 rounded-xl flex items-center justify-center text-sm font-bold shadow-sm shrink-0 border border-indigo-100/20">
+                        {expense.category ? expense.category.charAt(0).toUpperCase() : 'E'}
+                      </div>
+                      <div className="min-w-0">
+                        <div className="flex items-center gap-2">
+                          <p className="text-sm font-bold text-zinc-950 dark:text-zinc-100 truncate">{expense.description}</p>
+                          <span className="text-[9px] font-bold uppercase tracking-wider bg-zinc-100 dark:bg-zinc-805 px-2 py-0.5 rounded-full text-zinc-500">{expense.category}</span>
+                        </div>
+                        <p className="text-[10px] text-zinc-400 mt-0.5 font-medium">
+                          Paid by <span className="font-bold text-zinc-650 dark:text-zinc-300">{members.find(m => m.uid === expense.paidBy)?.displayName || 'Unknown'}</span> &bull; {expense.date.toDate().toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
+                        </p>
+                      </div>
+                    </div>
+                    <div className="flex items-center gap-3 shrink-0">
+                      <span className="text-sm font-black text-zinc-900 dark:text-zinc-100 font-mono">
+                        ₹{formatCurrency(expense.amount)}
+                      </span>
+                    </div>
+                  </div>
+                ))
+              )}
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
 
       <div className="bg-white dark:bg-zinc-900 p-4 sm:p-8 rounded-[40px] border border-zinc-200 dark:border-zinc-800 shadow-xl shadow-zinc-200/50 dark:shadow-black/20 mb-12">
         <h3 className="text-xs font-bold text-zinc-500 dark:text-zinc-400 uppercase tracking-[0.15em] mb-8 flex items-center gap-2">
@@ -1877,10 +2111,18 @@ export default function GroupView({ groupId, user, onBack, theme }: GroupViewPro
         </div>
 
         <div>
-          <h2 className="text-xl font-bold tracking-tight text-zinc-900 dark:text-white mb-8 flex items-center gap-3 font-display">
-            <Users className="w-6 h-6 text-zinc-400 dark:text-zinc-500" />
-            Group Members
-          </h2>
+          <div className="flex items-center justify-between mb-8 gap-3">
+            <h2 className="text-xl font-bold tracking-tight text-zinc-900 dark:text-white flex items-center gap-3 font-display">
+              <Users className="w-6 h-6 text-zinc-400 dark:text-zinc-500" />
+              Group Members
+            </h2>
+            <button
+              onClick={() => setIsManageMembersOpen(true)}
+              className="px-4 py-1.5 bg-zinc-50 dark:bg-zinc-805 text-zinc-650 dark:text-zinc-300 rounded-xl text-xs font-bold hover:bg-zinc-100 dark:hover:bg-zinc-800 hover:text-indigo-600 dark:hover:text-indigo-400 transition-all border border-zinc-200/50 dark:border-zinc-750 active:scale-95 flex items-center gap-1.5 shadow-sm"
+            >
+              Manage
+            </button>
+          </div>
           <div className="bg-white dark:bg-zinc-900 p-8 rounded-[40px] border border-zinc-200 dark:border-zinc-800 shadow-xl shadow-zinc-200/50 dark:shadow-black/20">
             <div className="space-y-6">
               {members.map(member => (
@@ -2545,6 +2787,129 @@ export default function GroupView({ groupId, user, onBack, theme }: GroupViewPro
                   )}
                 </div>
               </form>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
+      
+      {/* Manage Members Modal */}
+      <AnimatePresence>
+        {isManageMembersOpen && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+            <motion.div 
+              initial={{ opacity: 0 }} 
+              animate={{ opacity: 1 }} 
+              exit={{ opacity: 0 }}
+              onClick={() => setIsManageMembersOpen(false)}
+              className="absolute inset-0 bg-zinc-900/40 backdrop-blur-sm"
+            />
+            <motion.div
+              role="dialog"
+              aria-modal="true"
+              initial={{ opacity: 0, scale: 0.95, y: 20 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.95, y: 20 }}
+              className="relative w-full max-w-md bg-white dark:bg-zinc-900 rounded-[32px] sm:rounded-[40px] shadow-2xl p-6 sm:p-10 outline-none max-h-[92vh] overflow-y-auto custom-scrollbar z-10"
+            >
+              <div className="flex items-center justify-between mb-6 sm:mb-8">
+                <div>
+                  <h3 className="text-xl sm:text-2xl font-bold tracking-tight text-zinc-900 dark:text-white font-display">Manage Members</h3>
+                  <p className="text-xs text-zinc-500 mt-1">View, invite, or remove group members</p>
+                </div>
+                <button 
+                  type="button"
+                  onClick={() => setIsManageMembersOpen(false)} 
+                  className="p-2 hover:bg-zinc-100 dark:hover:bg-zinc-800 rounded-full transition-colors outline-none focus:ring-2 focus:ring-indigo-505"
+                  aria-label="Close modal"
+                >
+                  <X className="w-5 h-5 text-zinc-500" />
+                </button>
+              </div>
+
+              {/* Add Member inline form for the group creator */}
+              {group?.createdBy === user.uid ? (
+                <div className="mb-8 p-5 bg-zinc-50/50 dark:bg-zinc-800/15 border border-zinc-150/40 dark:border-zinc-805 rounded-2xl relative">
+                  <h4 className="text-[10px] font-bold uppercase tracking-[0.15em] text-indigo-500 dark:text-indigo-400 mb-4">Invite New Member</h4>
+                  <form onSubmit={handleAddMember} className="flex gap-2.5">
+                    <div className="relative flex-1">
+                      <input
+                        type="email"
+                        value={newMemberEmail}
+                        onChange={(e) => setNewMemberEmail(e.target.value)}
+                        placeholder="Enter email address"
+                        className="w-full px-4 py-3 bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-xl text-xs focus:outline-none focus:ring-2 focus:ring-indigo-505 transition-all dark:text-white"
+                        required
+                        disabled={inviteLoading}
+                      />
+                    </div>
+                    <button
+                      type="submit"
+                      disabled={inviteLoading || !newMemberEmail.trim()}
+                      className="px-5 py-3 bg-indigo-600 hover:bg-indigo-700 disabled:opacity-50 text-white rounded-xl text-xs font-bold transition-all shadow active:scale-95 shrink-0 flex items-center justify-center min-w-[80px]"
+                    >
+                      {inviteLoading ? 'Adding...' : 'Invite'}
+                    </button>
+                  </form>
+                  {inviteError && (
+                    <p className="text-[10px] font-bold text-red-650 mt-2.5 bg-red-50 dark:bg-red-500/10 px-3 py-1.5 rounded-lg border border-red-100 dark:border-red-500/10">{inviteError}</p>
+                  )}
+                  {inviteSuccess && (
+                    <p className="text-[10px] font-bold text-emerald-650 mt-2.5 bg-emerald-50 dark:bg-emerald-500/10 px-3 py-1.5 rounded-lg border border-emerald-100 dark:border-emerald-500/10">Member added successfully!</p>
+                  )}
+                </div>
+              ) : (
+                <p className="text-[10px] text-zinc-400 font-medium tracking-wide mb-6 bg-zinc-50 dark:bg-zinc-850 p-4 rounded-xl italic">
+                  * Only the group owner can invite or remove members.
+                </p>
+              )}
+
+              <h4 className="text-[10px] font-bold uppercase tracking-[0.15em] text-zinc-400 mb-4 font-display">Current Members ({members.length})</h4>
+              <div className="space-y-4 max-h-[320px] overflow-y-auto pr-1 custom-scrollbar">
+                {members.map(member => {
+                  const isUser = member.uid === user.uid;
+                  const isCreator = member.uid === group?.createdBy;
+                  return (
+                    <div key={member.uid} className="flex items-center justify-between p-3.5 bg-zinc-50 dark:bg-zinc-800/20 rounded-2xl border border-zinc-100/50 dark:border-zinc-850/30">
+                      <div className="flex items-center gap-3.5 min-w-0">
+                        <div className="w-10 h-10 bg-zinc-100 dark:bg-zinc-800 text-zinc-650 dark:text-zinc-300 rounded-xl flex items-center justify-center font-bold text-sm border border-zinc-200/40 dark:border-zinc-700/40">
+                          {member.displayName?.charAt(0).toUpperCase() || '?'}
+                        </div>
+                        <div className="min-w-0">
+                          <div className="flex items-center gap-2">
+                            <p className="text-xs font-bold text-zinc-950 dark:text-white truncate">
+                              {member.displayName}
+                              {isUser && <span className="text-[10px] font-normal text-zinc-400 ml-1.5">(You)</span>}
+                            </p>
+                          </div>
+                          <p className="text-[9px] font-bold text-zinc-400 dark:text-zinc-500 uppercase tracking-widest mt-0.5 mt-0.5">
+                            {isCreator ? 'Group Creator' : member.role || 'Member'}
+                          </p>
+                        </div>
+                      </div>
+                      
+                      {group?.createdBy === user.uid && !isCreator ? (
+                        <button
+                          type="button"
+                          onClick={() => handleRemoveMember(member.uid)}
+                          disabled={removingMemberUid !== null}
+                          className="p-2 bg-red-50 dark:bg-red-500/10 hover:bg-red-105 dark:hover:bg-red-500/20 text-red-655 dark:text-red-400 rounded-xl transition-all shadow-sm border border-red-100 dark:border-red-500/20 active:scale-95 disabled:opacity-50"
+                          title="Remove Member"
+                        >
+                          {removingMemberUid === member.uid ? (
+                            <Loader2 className="w-3.5 h-3.5 animate-spin text-red-650" />
+                          ) : (
+                            <UserMinus className="w-4 h-4" />
+                          )}
+                        </button>
+                      ) : (
+                        isCreator && (
+                          <span className="shrink-0 text-[8px] font-bold text-indigo-600 bg-indigo-50 dark:bg-indigo-500/10 px-2.5 py-1 rounded-full border border-indigo-100 dark:border-indigo-500/20 tracking-wider">OWNER</span>
+                        )
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
             </motion.div>
           </div>
         )}
