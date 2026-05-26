@@ -43,7 +43,9 @@ import {
   PieChart,
   Pie,
   Cell,
-  Legend
+  Legend,
+  BarChart,
+  Bar
 } from 'recharts';
 import { db, storage } from '../firebase';
 import { 
@@ -52,6 +54,7 @@ import {
   onSnapshot, 
   orderBy, 
   doc, 
+  getDoc,
   setDoc,
   addDoc, 
   deleteDoc, 
@@ -574,24 +577,43 @@ export default function GroupView({ groupId, user, onBack, theme }: GroupViewPro
 
   const handleAddMember = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!newMemberEmail.trim() || inviteLoading) return;
+    const targetEmail = newMemberEmail.trim().toLowerCase();
+    if (!targetEmail || inviteLoading) return;
 
     setInviteLoading(true);
     setInviteError(null);
     setInviteSuccess(false);
 
     try {
-      // 1. Search for user by email
-      const usersQuery = query(collection(db, 'users'), where('email', '==', newMemberEmail.trim()));
+      // 1. Search for user by email querying users collection
+      console.log(`Starting member invitation for: ${targetEmail}`);
+      const usersQuery = query(collection(db, 'users'), where('email', '==', targetEmail));
       const usersSnap = await getDocs(usersQuery);
 
       if (usersSnap.empty) {
-        setInviteError('No user found with this email address. They must sign in to Budgeted at least once to be invited.');
+        setInviteError('No registered user was found with this email. To be invited, they must log in to the application at least once.');
         return;
       }
 
       const invitedUser = usersSnap.docs[0].data();
       const invitedUid = invitedUser.uid;
+
+      if (!invitedUid) {
+        setInviteError('Invalid user profile retrieved. This profile is incomplete.');
+        return;
+      }
+
+      // 1.5. Explicitly verify the invited user's document exists
+      console.log(`Verifying registered user exists at: users/${invitedUid}`);
+      const userDocRef = doc(db, 'users', invitedUid);
+      const userDocSnap = await getDoc(userDocRef);
+
+      if (!userDocSnap.exists()) {
+        setInviteError('User found by email query but their profile document does not exist.');
+        return;
+      }
+
+      console.log(`User query and document verification succeeded for UID: ${invitedUid}`);
 
       // 2. Check if already a member
       if (group?.memberIds.includes(invitedUid)) {
@@ -600,30 +622,47 @@ export default function GroupView({ groupId, user, onBack, theme }: GroupViewPro
       }
 
       // 3. Add to group's memberIds array
+      console.log(`Adding member UID ${invitedUid} to group memberIds`);
       await updateDoc(doc(db, 'groups', groupId), {
         memberIds: arrayUnion(invitedUid)
       });
 
       // 4. Add to members subcollection
+      console.log(`Setting document in groups/${groupId}/members/${invitedUid}`);
       await setDoc(doc(db, 'groups', groupId, 'members', invitedUid), {
         uid: invitedUid,
         role: 'member',
         joinedAt: serverTimestamp(),
-        displayName: invitedUser.displayName,
+        displayName: invitedUser.displayName || 'Anonymous Member',
         email: invitedUser.email,
         photoURL: invitedUser.photoURL || null
       });
 
+      console.log(`Member invitation completed successfully for UID: ${invitedUid}`);
       setInviteSuccess(true);
       setNewMemberEmail('');
       setTimeout(() => {
         setIsAddMemberOpen(false);
         setInviteSuccess(false);
       }, 2000);
-    } catch (error) {
+    } catch (error: any) {
       console.error("Error adding member:", error);
-      handleFirestoreError(error, OperationType.UPDATE, `groups/${groupId}/members`);
-      setInviteError('Failed to add member. Please try again.');
+      
+      let readableError = 'Failed to add member. Please try again.';
+      if (error && error.message) {
+        if (error.message.includes('permission') || error.message.includes('Permission')) {
+          readableError = 'Check permissions: You do not have permission to invite users or update this group.';
+        } else {
+          readableError = `Error: ${error.message}`;
+        }
+      }
+      setInviteError(readableError);
+
+      try {
+        handleFirestoreError(error, OperationType.UPDATE, `groups/${groupId}/members`);
+      } catch (e) {
+        // Error already logged and thrown
+      }
     } finally {
       setInviteLoading(false);
     }
@@ -869,8 +908,30 @@ export default function GroupView({ groupId, user, onBack, theme }: GroupViewPro
     return Array.from(categoryMap.entries()).map(([name, value]) => ({ name, value }));
   };
 
+  const getMemberContributionData = () => {
+    const contributionMap = new Map<string, number>();
+    
+    // Initialize current group members to 0 contribution
+    members.forEach(m => {
+      contributionMap.set(m.uid, 0);
+    });
+
+    expenses.forEach(e => {
+      const isExpense = !e.type || e.type === 'expense';
+      if (isExpense && e.paidBy) {
+        contributionMap.set(e.paidBy, (contributionMap.get(e.paidBy) || 0) + e.amount);
+      }
+    });
+
+    return members.map(m => ({
+      name: m.displayName || 'Anonymous',
+      amount: contributionMap.get(m.uid) || 0
+    }));
+  };
+
   const lineData = getLineChartData();
   const pieData = getPieChartData();
+  const memberContributionData = getMemberContributionData();
   const COLORS = ['#10b981', '#f59e0b', '#3b82f6', '#ef4444', '#8b5cf6', '#ec4899', '#06b6d4', '#84cc16', '#71717a'];
 
   const getPeriodLabel = () => {
@@ -1414,7 +1475,7 @@ export default function GroupView({ groupId, user, onBack, theme }: GroupViewPro
         )}
       </AnimatePresence>
 
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 mb-12">
+      <div className={`grid grid-cols-1 ${group.budgetType !== 'total' ? 'lg:grid-cols-3' : 'lg:grid-cols-2'} gap-8 mb-12`}>
         {group.budgetType !== 'total' && (
           <div className="bg-white dark:bg-zinc-900 p-4 sm:p-8 rounded-[40px] border border-zinc-200 dark:border-zinc-800 shadow-xl shadow-zinc-200/50 dark:shadow-black/20">
             <h3 className="text-xs font-bold text-zinc-500 dark:text-zinc-400 uppercase tracking-[0.15em] mb-8 flex items-center gap-2">
@@ -1465,7 +1526,7 @@ export default function GroupView({ groupId, user, onBack, theme }: GroupViewPro
             </div>
           </div>
         )}
-        <div className={`bg-white dark:bg-zinc-900 p-4 sm:p-8 rounded-[40px] border border-zinc-200 dark:border-zinc-800 shadow-xl shadow-zinc-200/50 dark:shadow-black/20 ${group.budgetType === 'total' ? 'lg:col-span-2' : ''}`}>
+        <div className="bg-white dark:bg-zinc-900 p-4 sm:p-8 rounded-[40px] border border-zinc-200 dark:border-zinc-800 shadow-xl shadow-zinc-200/50 dark:shadow-black/20">
           <h3 className="text-xs font-bold text-zinc-500 dark:text-zinc-400 uppercase tracking-[0.15em] mb-8 flex items-center gap-2">
             <PieChartIcon className="w-4 h-4" />
             Category Distribution
@@ -1506,6 +1567,62 @@ export default function GroupView({ groupId, user, onBack, theme }: GroupViewPro
               <div className="h-full flex flex-col items-center justify-center text-zinc-500 dark:text-zinc-400 text-sm">
                 <PieChartIcon className="w-10 h-10 mb-2 opacity-20" />
                 <p className="font-medium italic">No expenses in this period</p>
+              </div>
+            )}
+          </div>
+        </div>
+
+        {/* Member Contributions Bar Chart */}
+        <div className="bg-white dark:bg-zinc-900 p-4 sm:p-8 rounded-[40px] border border-zinc-200 dark:border-zinc-800 shadow-xl shadow-zinc-200/50 dark:shadow-black/20">
+          <h3 className="text-xs font-bold text-zinc-500 dark:text-zinc-400 uppercase tracking-[0.15em] mb-8 flex items-center gap-2">
+            <Users className="w-4 h-4 text-indigo-500" />
+            Member Contributions
+          </h3>
+          <div className="h-[280px] w-full">
+            {memberContributionData.some(d => d.amount > 0) ? (
+              <ResponsiveContainer width="100%" height="100%" minWidth={0} minHeight={0}>
+                <BarChart data={memberContributionData} margin={{ top: 5, right: 5, left: -20, bottom: 5 }}>
+                  <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f4f4f5" opacity={0.1} />
+                  <XAxis 
+                    dataKey="name" 
+                    axisLine={false} 
+                    tickLine={false} 
+                    tick={{ fontSize: 10, fill: '#a1a1aa', fontWeight: 500 }}
+                  />
+                  <YAxis 
+                    axisLine={false} 
+                    tickLine={false} 
+                    tick={{ fontSize: 10, fill: '#a1a1aa', fontWeight: 500 }}
+                    tickFormatter={(value) => `₹${value}`}
+                  />
+                  <Tooltip 
+                    contentStyle={{ 
+                      borderRadius: '16px', 
+                      border: 'none', 
+                      boxShadow: '0 10px 25px -5px rgba(0,0,0,0.1)', 
+                      padding: '12px', 
+                      backgroundColor: theme === 'dark' ? '#18181b' : '#ffffff', 
+                      color: theme === 'dark' ? '#ffffff' : '#18181b' 
+                    }}
+                    itemStyle={{ fontSize: '12px', fontWeight: 600, color: theme === 'dark' ? '#ffffff' : '#18181b' }}
+                    labelStyle={{ fontSize: '10px', color: '#71717a', marginBottom: '4px', textTransform: 'uppercase', fontWeight: 700 }}
+                    formatter={(value: number) => [`₹${formatCurrency(value)}`, 'Contributed']}
+                  />
+                  <Bar 
+                    dataKey="amount" 
+                    fill="#4f46e5" 
+                    radius={[8, 8, 0, 0]}
+                  >
+                    {memberContributionData.map((entry, index) => (
+                      <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
+                    ))}
+                  </Bar>
+                </BarChart>
+              </ResponsiveContainer>
+            ) : (
+              <div className="h-full flex flex-col items-center justify-center text-zinc-500 dark:text-zinc-400 text-sm">
+                <Users className="w-10 h-10 mb-2 opacity-20" />
+                <p className="font-medium italic">No contributions yet</p>
               </div>
             )}
           </div>
