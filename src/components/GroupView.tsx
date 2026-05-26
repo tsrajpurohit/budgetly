@@ -938,16 +938,22 @@ export default function GroupView({ groupId, user, onBack, theme }: GroupViewPro
         let exceeded = 0;
         let saving = 0;
 
-        if (limit > 0) {
-          if (weekSpent > limit) {
-            withinBudget = limit;
-            exceeded = weekSpent - limit;
-            saving = 0;
-          } else {
-            withinBudget = weekSpent;
-            exceeded = 0;
-            saving = limit - weekSpent;
+        if (weekSpent > 0) {
+          if (limit > 0) {
+            if (weekSpent > limit) {
+              withinBudget = limit;
+              exceeded = weekSpent - limit;
+              saving = 0;
+            } else {
+              withinBudget = weekSpent;
+              exceeded = 0;
+              saving = limit - weekSpent;
+            }
           }
+        } else {
+          withinBudget = 0;
+          exceeded = 0;
+          saving = 0;
         }
 
         data.push({ 
@@ -974,16 +980,22 @@ export default function GroupView({ groupId, user, onBack, theme }: GroupViewPro
         let exceeded = 0;
         let saving = 0;
 
-        if (limit > 0) {
-          if (monthSpent > limit) {
-            withinBudget = limit;
-            exceeded = monthSpent - limit;
-            saving = 0;
-          } else {
-            withinBudget = monthSpent;
-            exceeded = 0;
-            saving = limit - monthSpent;
+        if (monthSpent > 0) {
+          if (limit > 0) {
+            if (monthSpent > limit) {
+              withinBudget = limit;
+              exceeded = monthSpent - limit;
+              saving = 0;
+            } else {
+              withinBudget = monthSpent;
+              exceeded = 0;
+              saving = limit - monthSpent;
+            }
           }
+        } else {
+          withinBudget = 0;
+          exceeded = 0;
+          saving = 0;
         }
 
         data.push({ 
@@ -1058,6 +1070,48 @@ export default function GroupView({ groupId, user, onBack, theme }: GroupViewPro
       const ed = e.date.toDate();
       return ed.getMonth() === monthIndex && ed.getFullYear() === currentYear && (!e.type || e.type === 'expense');
     });
+  };
+
+  const CustomTrendTooltip = ({ active, payload, label }: any) => {
+    if (active && payload && payload.length) {
+      const data = payload[0].payload;
+      const amount = data.amount;
+      const limit = group?.maxBudget || 0;
+      const hasLimit = limit > 0;
+      
+      return (
+        <div className="bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-2xl shadow-xl p-4 text-xs max-w-[240px]">
+          <p className="font-bold text-[10px] text-zinc-400 dark:text-zinc-500 uppercase tracking-widest mb-2.5">{label}</p>
+          <div className="space-y-2">
+            <div className="flex items-center justify-between gap-4">
+              <span className="text-zinc-500 dark:text-zinc-400 font-medium font-sans">Total Spent:</span>
+              <span className="font-extrabold font-mono text-zinc-900 dark:text-white">₹{formatCurrency(amount)}</span>
+            </div>
+            {hasLimit && (
+              <>
+                <div className="border-t border-zinc-100 dark:border-zinc-800/60 my-2" />
+                <div className="flex items-center justify-between gap-4">
+                  <span className="text-zinc-405 dark:text-zinc-500 font-medium">Budget Limit:</span>
+                  <span className="font-semibold font-mono text-zinc-500">₹{formatCurrency(limit)}</span>
+                </div>
+                {amount > limit ? (
+                  <div className="flex items-center justify-between gap-4 flex-nowrap">
+                    <span className="text-rose-500 font-bold shrink-0">Exceeded:</span>
+                    <span className="font-bold font-mono text-rose-500">₹{formatCurrency(amount - limit)}</span>
+                  </div>
+                ) : (
+                  <div className="flex items-center justify-between gap-4 flex-nowrap">
+                    <span className="text-emerald-505 dark:text-emerald-400 font-bold shrink-0">Savings:</span>
+                    <span className="font-bold font-mono text-emerald-505 dark:text-emerald-400">₹{formatCurrency(limit - amount)}</span>
+                  </div>
+                )}
+              </>
+            )}
+          </div>
+        </div>
+      );
+    }
+    return null;
   };
 
   const lineData = getLineChartData();
@@ -1638,22 +1692,11 @@ export default function GroupView({ groupId, user, onBack, theme }: GroupViewPro
                     tick={{ fontSize: 10, fill: '#a1a1aa', fontWeight: 500 }}
                     tickFormatter={(value) => `₹${value}`}
                   />
-                  <Tooltip 
-                    contentStyle={{ 
-                      borderRadius: '16px', 
-                      border: 'none', 
-                      boxShadow: '0 10px 25px -5px rgba(0,0,0,0.1)', 
-                      padding: '12px', 
-                      backgroundColor: theme === 'dark' ? '#18181b' : '#ffffff', 
-                      color: theme === 'dark' ? '#ffffff' : '#18181b' 
-                    }}
-                    itemStyle={{ fontSize: '12px', fontWeight: 600, color: theme === 'dark' ? '#ffffff' : '#18181b' }}
-                    labelStyle={{ fontSize: '10px', color: '#71717a', marginBottom: '4px', textTransform: 'uppercase', fontWeight: 700 }}
-                    formatter={(value: number) => [`₹${formatCurrency(value)}`, 'Spent']}
-                  />
+                  <Tooltip content={<CustomTrendTooltip />} />
                   <Bar 
-                    dataKey="amount" 
-                    radius={[8, 8, 0, 0]}
+                    dataKey="withinBudget" 
+                    stackId="a" 
+                    radius={[4, 4, 0, 0]}
                     className="cursor-pointer"
                   >
                     {lineData.map((entry, index) => {
@@ -1667,9 +1710,63 @@ export default function GroupView({ groupId, user, onBack, theme }: GroupViewPro
                       );
                     })}
                   </Bar>
+                  {group.maxBudget ? (
+                    <Bar 
+                      dataKey="saving" 
+                      stackId="a" 
+                      radius={[4, 4, 0, 0]}
+                      className="cursor-pointer"
+                    >
+                      {lineData.map((entry, index) => {
+                        const isSelected = selectedTrendPeriod === entry.name;
+                        return (
+                          <Cell 
+                            key={`cell-saving-${index}`} 
+                            fill={isSelected ? '#10b981' : '#34d399'} 
+                            opacity={selectedTrendPeriod && !isSelected ? 0.35 : 1}
+                          />
+                        );
+                      })}
+                    </Bar>
+                  ) : null}
+                  {group.maxBudget ? (
+                    <Bar 
+                      dataKey="exceeded" 
+                      stackId="a" 
+                      radius={[4, 4, 0, 0]}
+                      className="cursor-pointer"
+                    >
+                      {lineData.map((entry, index) => {
+                        const isSelected = selectedTrendPeriod === entry.name;
+                        return (
+                          <Cell 
+                            key={`cell-exceeded-${index}`} 
+                            fill={isSelected ? '#f43f5e' : '#ef4444'} 
+                            opacity={selectedTrendPeriod && !isSelected ? 0.35 : 1}
+                          />
+                        );
+                      })}
+                    </Bar>
+                  ) : null}
                 </BarChart>
               </ResponsiveContainer>
             </div>
+            {group.maxBudget ? (
+              <div className="flex flex-wrap items-center justify-center gap-x-4 gap-y-1.5 mt-4 pt-3.5 border-t border-zinc-100 dark:border-zinc-800/60 text-[9px] font-bold uppercase tracking-widest text-zinc-400">
+                <div className="flex items-center gap-1.5">
+                  <span className="w-2.5 h-2.5 rounded-full bg-indigo-500 block shrink-0" />
+                  <span>Within Limit</span>
+                </div>
+                <div className="flex items-center gap-1.5">
+                  <span className="w-2.5 h-2.5 rounded-full bg-emerald-400 block shrink-0" />
+                  <span>Saved Budget</span>
+                </div>
+                <div className="flex items-center gap-1.5">
+                  <span className="w-2.5 h-2.5 rounded-full bg-rose-500 block shrink-0" />
+                  <span>Exceeded Budget</span>
+                </div>
+              </div>
+            ) : null}
           </div>
         )}
         <div className="bg-white dark:bg-zinc-900 p-4 sm:p-8 rounded-[40px] border border-zinc-200 dark:border-zinc-800 shadow-xl shadow-zinc-200/50 dark:shadow-black/20">
